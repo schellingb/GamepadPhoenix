@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition="'$(Configuration)'==''">Debug</Configuration>
+    <Platform Condition="'$(Platform)'==''">x64</Platform>
+    <ProjectGuid>{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF0}</ProjectGuid>
+    <RootNamespace>GamepadPhoenix</RootNamespace>
+    <AssemblyName>GamepadPhoenix</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <ApplicationIcon>GamepadPhoenix.ico</ApplicationIcon>
+    <Install>false</Install>
+    <UpdateEnabled>false</UpdateEnabled>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.0</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>false</BootstrapperEnabled>
+    <WarningLevel>4</WarningLevel>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <OutputType>Exe</OutputType>
+    <OutputPath>build\Debug\</OutputPath>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <OutputType>WinExe</OutputType>
+    <OutputPath>build\Release</OutputPath>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup>
+    <Prefer32Bit>false</Prefer32Bit>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <IntermediateOutputPath>$(OutputPath)</IntermediateOutputPath>
+    <NoWin32Manifest>true</NoWin32Manifest>
+    <StartupObject />
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.XML" />
+    <Compile Include="MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PresetsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GamepadPhoenix.cs" />
+    <EmbeddedResource Include="Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <None Include="app.config" />
+    <None Include="gfx\DPAD-Black.png" />
+    <None Include="gfx\BG.png" />
+    <None Include="gfx\Circle.png" />
+    <None Include="gfx\DPAD.png" />
+    <None Include="gfx\Glow.png" />
+    <None Include="gfx\L1.png" />
+    <None Include="gfx\L2.png" />
+    <None Include="gfx\LICENSE" />
+    <None Include="gfx\R1.png" />
+    <None Include="gfx\R2.png" />
+    <None Include="gfx\Select.png" />
+    <None Include="gfx\Start.png" />
+    <None Include="gfx\Stick.png" />
+    <None Include="gfx\StickDown.png" />
+    <None Include="gfx\StickLeft.png" />
+    <None Include="gfx\StickPress.png" />
+    <None Include="gfx\StickRight.png" />
+    <None Include="gfx\StickUp.png" />
+    <None Include="gfx\X.png" />
+    <None Include="gfx\Y.png" />
+    <None Include="gfx\A.png" />
+    <None Include="gfx\B.png" />
+    <None Include="gfx\GlowPress.png" />
+    <None Include="gfx\GlowAssign.png" />
+    <None Include="gfx\GlowHover.png" />
+    <None Include="gfx\LEDOn.png" />
+    <None Include="gfx\LEDOff.png" />
+    <None Include="gfx\DPADDown.png" />
+    <None Include="gfx\DPADLeft.png" />
+    <None Include="gfx\DPADRight.png" />
+    <None Include="gfx\DPADUp.png" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>

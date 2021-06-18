@@ -1,0 +1,37 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.0.0
+MinimumVisualStudioVersion = 10.0.0.0
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GamepadPhoenix", "GamepadPhoenix.csproj", "{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF1} = {FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF1}
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF2} = {FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF2}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GamepadPhoenix32", "GamepadPhoenix32.vcxproj", "{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GamepadPhoenix64", "GamepadPhoenix64.vcxproj", "{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF1}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF1}.Debug|Any CPU.Build.0 = Debug|Win32
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF1}.Release|Any CPU.ActiveCfg = Release|Win32
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF1}.Release|Any CPU.Build.0 = Release|Win32
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF2}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF2}.Debug|Any CPU.Build.0 = Debug|x64
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF2}.Release|Any CPU.ActiveCfg = Release|x64
+		{FFFFFFFF-FFFF-4FFF-FFFF-FFFFFFFFFFF2}.Release|Any CPU.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
