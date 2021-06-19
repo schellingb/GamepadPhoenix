@@ -1839,7 +1839,7 @@ static void Hook(bool forceLoad)
 		wcscpy(ver, L"8.dll");
 		HMODULE hmDI8 = (forceLoad ? fpLoadLibraryW(path) : GetModuleHandleW(path));
 		GPASSERT(!ModuleCreate8); // Make sure this wasn't somehow recursively called
-		if (hmDI8 && ((ModuleCreate8 = (GPDirectInput8CreateFN)GetProcAddress(hmDI8, "DirectInput8Create")) != NULL) && g_hHeap)
+		if (hmDI8 && ((ModuleCreate8 = (GPDirectInput8CreateFN)fpGetProcAddress(hmDI8, "DirectInput8Create")) != NULL) && g_hHeap)
 		{
 			if (!forceLoad) fpLoadLibraryW(path); // Increase reference count to keep hooked library loaded until process ends
 			CreateHook((LPVOID)ModuleCreate8, "DirectInput8Create", GPDirectInput8Create, true, (LPVOID*)&ModuleCreate8);

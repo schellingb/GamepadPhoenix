@@ -371,9 +371,9 @@ static void Hook(bool forceLoad = false)
 
 		LoadedNs |= (1<<n);
 		if (!forceLoad) GameUsesXInput = true;
-		if (GetProcAddress(hmXInput, "UIPad")) continue; // skip if its our own fake DLL
+		if (fpGetProcAddress(hmXInput, "UIPad")) continue; // skip if its our own fake DLL
 
-		LPVOID pGetState = (LPVOID)GetProcAddress(hmXInput, "XInputGetState");
+		LPVOID pGetState = (LPVOID)fpGetProcAddress(hmXInput, "XInputGetState");
 		LOGSCOPE("%s: %S - GetState: %p - AlreadyHooked: %d", (forceLoad ? "force loaded library" : "found already loaded module"), path, pGetState, AlreadyHooked(pGetState));
 		if (!pGetState) continue;
 		if (g_hHeap && !AlreadyHooked(pGetState, &pGetState)) // local path and system path is probably same file so check AlreadyHooked
@@ -394,7 +394,7 @@ static void Hook(bool forceLoad = false)
 			CreateHook(hmXInput,  104, "XInputGetBaseBusInformation", GPXInputGetBaseBusInformation,     false);
 			CreateHook(hmXInput,  108, "XInputGetCapabilitiesEx",     GPXInputGetCapabilitiesEx,          true);
 			WriteLog("Intercepting XInput DLL %S\n", path);
-			if (GetProcAddress(hmXInput, "Reset"))
+			if (fpGetProcAddress(hmXInput, "Reset"))
 				WriteLog("Detected usage of XInput emulator DLL, this might lead to unwanted results.\n");
 		}
 		if ((n % VERSIONCOUNT) < IDXVERSION910 || forceLoad) OrgGetState = (GPXInputGetStateFN)pGetState;

@@ -155,8 +155,9 @@ static bool InputSetupDone;
 static bool GameUsesXInput;
 static bool ForceVirtualDevices;
 static const wchar_t* (*XDIGetDevName)(unsigned int devNum);
-static HMODULE (WINAPI *fpLoadLibraryW)(LPCWSTR lpLibFileName);
-static BOOL (WINAPI *fpCreateProcessW)(LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION);
+static HMODULE (WINAPI *fpLoadLibraryW)(LPCWSTR lpLibFileName) = &LoadLibraryW;
+static FARPROC (WINAPI *fpGetProcAddress)(HMODULE hModule, LPCSTR lpProcName) = &GetProcAddress;
+static BOOL (WINAPI *fpCreateProcessW)(LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION) = &CreateProcessW;
 static int (__cdecl *fpVSNPrintF)(char *buffer, size_t count, const char *format, va_list argptr);
 static int SNPrintF(char *buffer, size_t count, const char *format, ...) { va_list ap; va_start(ap, format); int res = fpVSNPrintF(buffer, count, format, ap); va_end(ap); return res; }
 
@@ -218,7 +219,7 @@ static void CreateMiniDump()
 		WriteLog("[CreateMiniDump] Load dbghelp...\n");
 		HMODULE g_hModuleDbgHelp = ::LoadLibraryA( "dbghelp.dll" );
 		WriteLog("[CreateMiniDump] Getproc MiniDumpWriteDump...\n");
-		PFN_MiniDumpWriteDump	g_pfn_MiniDumpWriteDump = (PFN_MiniDumpWriteDump)::GetProcAddress( g_hModuleDbgHelp, "MiniDumpWriteDump" );
+		PFN_MiniDumpWriteDump g_pfn_MiniDumpWriteDump = (PFN_MiniDumpWriteDump)fpGetProcAddress(g_hModuleDbgHelp, "MiniDumpWriteDump" );
 		WriteLog("[CreateMiniDump] Create gpminidump.dmp...\n");
 		HANDLE	hFile = CreateFileA("gpminidump.dmp", GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		WriteLog("[CreateMiniDump] Call MiniDumpWriteDump...\n");
@@ -289,12 +290,12 @@ static bool CreateHook(LPVOID pTarget, LPCSTR pszProcName, LPVOID pDetour, bool 
 
 GPINLINE static bool CreateHook(HMODULE hModule, LPCSTR pszProcName, LPVOID pDetour, bool enableHooks, LPVOID* ppOriginal = NULL)
 {
-	return CreateHook((LPVOID)GetProcAddress(hModule, pszProcName), pszProcName, pDetour, enableHooks, ppOriginal);
+	return CreateHook((LPVOID)fpGetProcAddress(hModule, pszProcName), pszProcName, pDetour, enableHooks, ppOriginal);
 }
 
 GPINLINE static bool CreateHook(HMODULE hModule, int ordinal, LPCSTR pszProcName, LPVOID pDetour, bool enableHooks, LPVOID* ppOriginal = NULL)
 {
-	return CreateHook((LPVOID)GetProcAddress(hModule, (LPCSTR)(void*)(size_t)ordinal), pszProcName, pDetour, enableHooks, ppOriginal);
+	return CreateHook((LPVOID)fpGetProcAddress(hModule, (LPCSTR)(void*)(size_t)ordinal), pszProcName, pDetour, enableHooks, ppOriginal);
 }
 
 static bool AlreadyHooked(LPVOID pTarget, LPVOID* ppOriginal = NULL)
@@ -416,7 +417,7 @@ struct GPInject
 		else
 		{
 			pGPData->IsInject = true;
-			FARPROC procLoadLibraryW = GetProcAddress(GetModuleHandleA("kernel32"), "LoadLibraryW");
+			FARPROC procLoadLibraryW = fpGetProcAddress(GetModuleHandleA("kernel32"), "LoadLibraryW");
 			HANDLE hRemoteThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)procLoadLibraryW, lpBaseAddress, 0, NULL);
 			if (hRemoteThread != INVALID_HANDLE_VALUE)
 			{
@@ -441,7 +442,7 @@ struct GPInject
 		HMODULE hmShell32 = LoadLibraryA("SHELL32");
 		enum { ZCSIDL_WINDOWS = 0x0024, ZCSIDL_SYSTEMX86 = 0x0029 };
 		typedef BOOL (WINAPI *SHGetSpecialFolderPathWFN)(HWND hwnd, LPWSTR pszPath, int csidl, BOOL fCreate);
-		SHGetSpecialFolderPathWFN pSHGetSpecialFolderPathW = (SHGetSpecialFolderPathWFN)GetProcAddress(hmShell32, "SHGetSpecialFolderPathW");
+		SHGetSpecialFolderPathWFN pSHGetSpecialFolderPathW = (SHGetSpecialFolderPathWFN)fpGetProcAddress(hmShell32, "SHGetSpecialFolderPathW");
 		if (sizeof(void*) == 8) pSHGetSpecialFolderPathW(NULL, buf+1, ZCSIDL_SYSTEMX86, FALSE);
 		else { pSHGetSpecialFolderPathW(NULL, buf+1, ZCSIDL_WINDOWS, FALSE); wcscat(buf, L"\\Sysnative"); }
 		FreeLibrary(hmShell32);
@@ -586,7 +587,8 @@ struct GPInject
 static void HookKernel()
 {
 	HMODULE hmKernel = GetModuleHandleA("KernelBase");
-	if (!hmKernel || !GetProcAddress(hmKernel, "LoadLibraryA")) hmKernel = GetModuleHandleA("kernel32");
+	if (!hmKernel || !fpGetProcAddress(hmKernel, "LoadLibraryA")) hmKernel = GetModuleHandleA("kernel32");
+	fpGetProcAddress = (FARPROC(WINAPI*)(HMODULE,LPCSTR))fpGetProcAddress(hmKernel, "GetProcAddress");
 
 	HOOKFUNC_START(HMODULE, LoadLibraryA, (LPCSTR lpLibFileName)) { return GPInject::MyLoadLibrary(lpLibFileName, [&](){return fpLoadLibraryA(lpLibFileName);}, false); }
 	HOOKFUNC_END_HOOK(hmKernel, LoadLibraryA, false);
@@ -601,7 +603,7 @@ static void HookKernel()
 	HOOKFUNC_END_HOOK(hmKernel, CreateProcessA, false);
 	HOOKFUNC_START_NOFP(BOOL, CreateProcessW, (LPCWSTR lpApplicationName, LPWSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCWSTR lpCurrentDirectory, LPSTARTUPINFOW lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)) { return GPInject::MyCreateProcess(lpApplicationName, lpCommandLine, dwCreationFlags, lpProcessInformation, [&]() { return fpCreateProcessW(lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation); }, true); }
 	HOOKFUNC_END_HOOK(hmKernel, CreateProcessW, false);
-	if (GetProcAddress(hmKernel, "LoadLibraryA"))
+	if (fpGetProcAddress(hmKernel, "CreateProcessAsUserA"))
 	{
 		HOOKFUNC_START(BOOL, CreateProcessAsUserA, (HANDLE hToken, LPCSTR lpApplicationName, LPSTR lpCommandLine, LPSECURITY_ATTRIBUTES lpProcessAttributes, LPSECURITY_ATTRIBUTES lpThreadAttributes, BOOL bInheritHandles, DWORD dwCreationFlags, LPVOID lpEnvironment, LPCSTR lpCurrentDirectory, LPSTARTUPINFOA lpStartupInfo, LPPROCESS_INFORMATION lpProcessInformation)) { return GPInject::MyCreateProcess(lpApplicationName, lpCommandLine, dwCreationFlags, lpProcessInformation, [&]() { return fpCreateProcessAsUserA(hToken, lpApplicationName, lpCommandLine, lpProcessAttributes, lpThreadAttributes, bInheritHandles, dwCreationFlags, lpEnvironment, lpCurrentDirectory, lpStartupInfo, lpProcessInformation); }, false); }
 		HOOKFUNC_END_HOOK(hmKernel, CreateProcessAsUserA, false);
@@ -631,8 +633,8 @@ BOOL WINAPI DllMain(HINSTANCE const instance, DWORD const reason, LPVOID const r
 		if (isInject) pGPData->IsInject = false; // unset as soon as possible
 
 		// use vsprintf from Windows (save 6kb in output)
-		fpVSNPrintF = (int(__cdecl*)(char*,size_t,const char*,va_list))GetProcAddress(GetModuleHandleA("ntdll"), "_vsnprintf");
-		if (!fpVSNPrintF) fpVSNPrintF = (int(__cdecl*)(char*,size_t,const char*,va_list))GetProcAddress(LoadLibraryA("msvcrt"), "_vsnprintf");
+		fpVSNPrintF = (int(__cdecl*)(char*,size_t,const char*,va_list))fpGetProcAddress(GetModuleHandleA("ntdll"), "_vsnprintf");
+		if (!fpVSNPrintF) fpVSNPrintF = (int(__cdecl*)(char*,size_t,const char*,va_list))fpGetProcAddress(LoadLibraryA("msvcrt"), "_vsnprintf");
 
 		GetModuleFileNameW(NULL, MyDLLPath, (sizeof(MyDLLPath)/sizeof(MyDLLPath[0])-1));
 		wchar_t* pEXELastSlash = wcsrchr(MyDLLPath, '\\');
@@ -666,11 +668,6 @@ BOOL WINAPI DllMain(HINSTANCE const instance, DWORD const reason, LPVOID const r
 			MH_Initialize();
 			HookKernel();
 			RefreshHooks();
-		}
-		else
-		{
-			fpLoadLibraryW = &LoadLibraryW;
-			fpCreateProcessW = &CreateProcessW;
 		}
 	}
 	//else if (reason == DLL_PROCESS_DETACH)
@@ -788,7 +785,7 @@ void WINAPI UILaunch(const wchar_t* commandLine, const wchar_t* startDir)
 	PROCESS_INFORMATION pi;
 	wchar_t* commandLineDup = wcsdup(commandLine);
 	GPASSERT(!g_hHeap); //UI shouldn't hook functions
-	BOOL res = CreateProcessW(NULL, commandLineDup, NULL, NULL, false, (CREATE_SUSPENDED | CREATE_DEFAULT_ERROR_MODE | DETACHED_PROCESS), NULL, startDir, &si, &pi);
+	BOOL res = fpCreateProcessW(NULL, commandLineDup, NULL, NULL, false, (CREATE_SUSPENDED | CREATE_DEFAULT_ERROR_MODE | DETACHED_PROCESS), NULL, startDir, &si, &pi);
 	free(commandLineDup);
 	if (!res) return;
 	WriteLog("[LAUNCH] UI launching process '%S'\n", commandLine);

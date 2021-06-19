@@ -21,7 +21,7 @@ int WINAPI UIWii(const wchar_t* hidPath, BOOL on, int LEDs = 0)
 	if (!pHidD_SetOutputReport)
 	{
 		HMODULE hHidDLL = LoadLibraryA("hid.dll");
-		pHidD_SetOutputReport = (HidD_SetOutputReportFN)(hHidDLL == INVALID_HANDLE_VALUE ? NULL : GetProcAddress(hHidDLL, "HidD_SetOutputReport"));
+		pHidD_SetOutputReport = (HidD_SetOutputReportFN)(hHidDLL == INVALID_HANDLE_VALUE ? NULL : fpGetProcAddress(hHidDLL, "HidD_SetOutputReport"));
 	}
 
 	struct Wii
