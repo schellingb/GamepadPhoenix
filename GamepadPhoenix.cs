@@ -357,10 +357,12 @@ namespace GamepadPhoenix
 
     public class Config
     {
-        const string DefaultExcludeList = ""
+        internal const string DefaultExcludeList = ""
             + "steam.exe" + "|"
             + "upc.exe" + "|"
             + "Origin.exe" + "|"
+            + "EOSOverlayRenderer-Win32-Shipping.exe" + "|"
+            + "EOSOverlayRenderer-Win64-Shipping.exe" + "|"
             + "explorer.exe" + "|"
             + "WerFault.exe" + "|"
             + "vsjitdebugger.exe";
@@ -1087,6 +1089,7 @@ namespace GamepadPhoenix
                 (pu.Controls[0] as TextBox).Select(0,0);
                 pu.ShowDialog();
             };
+            f.btnMoreResetExcludes.Click += (object _s, EventArgs _e) => f.txtMoreExcludeList.Text = System.Text.RegularExpressions.Regex.Replace(Config.DefaultExcludeList, "[|]", Environment.NewLine);
             Wii.Setup(f);
         }
 

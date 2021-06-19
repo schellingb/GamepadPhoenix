@@ -149,6 +149,7 @@ namespace GamepadPhoenix
         internal Label lblLoadingShadow;
         internal Button btnLaunchRestore;
         internal Button btnLaunchSelectGameEXE;
+        internal Button btnMoreResetExcludes;
 
         /// <summary>
         /// Required designer variable.
@@ -184,6 +185,7 @@ namespace GamepadPhoenix
             this.groupBox4 = new System.Windows.Forms.GroupBox();
             this.btnLaunchRestore = new System.Windows.Forms.Button();
             this.txtLaunchName = new System.Windows.Forms.TextBox();
+            this.btnLaunchSelectGameEXE = new System.Windows.Forms.Button();
             this.txtLaunchTarget = new System.Windows.Forms.TextBox();
             this.btnLaunchTargetSelect = new System.Windows.Forms.Button();
             this.txtLaunchStartDir = new System.Windows.Forms.TextBox();
@@ -206,6 +208,7 @@ namespace GamepadPhoenix
             this.gridMoreWii = new System.Windows.Forms.DataGridView();
             this.groupBox6 = new System.Windows.Forms.GroupBox();
             this.label5 = new System.Windows.Forms.Label();
+            this.btnMoreResetExcludes = new System.Windows.Forms.Button();
             this.txtMoreExcludeList = new System.Windows.Forms.TextBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.btnL2 = new System.Windows.Forms.Button();
@@ -262,12 +265,14 @@ namespace GamepadPhoenix
             this.btnAssignRedo = new System.Windows.Forms.Button();
             this.btnAssignSwitch = new System.Windows.Forms.Button();
             this.lblBigFont = new System.Windows.Forms.Label();
+            this.pad = new GamepadPhoenix.PadControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.btnLaunchLogClear = new System.Windows.Forms.Button();
             this.tabPage4 = new System.Windows.Forms.TabPage();
             this.groupBox7 = new System.Windows.Forms.GroupBox();
+            this.fire = new GamepadPhoenix.FireLogo();
             this.btnMoreHomepage = new System.Windows.Forms.Button();
             this.btnMoreDonate = new System.Windows.Forms.Button();
             this.btnMoreGitHub = new System.Windows.Forms.Button();
@@ -285,9 +290,6 @@ namespace GamepadPhoenix
             this.systray = new System.Windows.Forms.NotifyIcon(this.components);
             this.lblLoading = new System.Windows.Forms.Label();
             this.lblLoadingShadow = new System.Windows.Forms.Label();
-            this.btnLaunchSelectGameEXE = new System.Windows.Forms.Button();
-            this.fire = new GamepadPhoenix.FireLogo();
-            this.pad = new GamepadPhoenix.PadControl();
             this.groupBox2.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.groupBox4.SuspendLayout();
@@ -425,6 +427,18 @@ namespace GamepadPhoenix
             this.txtLaunchName.Name = "txtLaunchName";
             this.txtLaunchName.Size = new System.Drawing.Size(670, 20);
             this.txtLaunchName.TabIndex = 1;
+            // 
+            // btnLaunchSelectGameEXE
+            // 
+            this.btnLaunchSelectGameEXE.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnLaunchSelectGameEXE.Enabled = false;
+            this.btnLaunchSelectGameEXE.Location = new System.Drawing.Point(476, 45);
+            this.btnLaunchSelectGameEXE.Name = "btnLaunchSelectGameEXE";
+            this.btnLaunchSelectGameEXE.Size = new System.Drawing.Size(270, 22);
+            this.btnLaunchSelectGameEXE.TabIndex = 4;
+            this.btnLaunchSelectGameEXE.Text = "Select Game EXE";
+            this.btnLaunchSelectGameEXE.UseVisualStyleBackColor = true;
+            this.btnLaunchSelectGameEXE.Visible = false;
             // 
             // txtLaunchTarget
             // 
@@ -576,7 +590,8 @@ namespace GamepadPhoenix
             // 
             // groupBox5
             // 
-            this.groupBox5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            this.groupBox5.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox5.Controls.Add(this.btnMoreWii);
             this.groupBox5.Controls.Add(this.lblMoreWii);
@@ -629,9 +644,11 @@ namespace GamepadPhoenix
             // 
             // groupBox6
             // 
-            this.groupBox6.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            this.groupBox6.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox6.Controls.Add(this.label5);
+            this.groupBox6.Controls.Add(this.btnMoreResetExcludes);
             this.groupBox6.Controls.Add(this.txtMoreExcludeList);
             this.groupBox6.Location = new System.Drawing.Point(701, 3);
             this.groupBox6.Name = "groupBox6";
@@ -649,16 +666,27 @@ namespace GamepadPhoenix
             this.label5.Text = "List of .EXE files that won\'t load the Gamepad Phoenix extension. Seperated by ne" +
     "w line.";
             // 
+            // btnMoreResetExcludes
+            // 
+            this.btnMoreResetExcludes.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnMoreResetExcludes.Location = new System.Drawing.Point(5, 47);
+            this.btnMoreResetExcludes.Name = "btnMoreResetExcludes";
+            this.btnMoreResetExcludes.Size = new System.Drawing.Size(240, 23);
+            this.btnMoreResetExcludes.TabIndex = 1;
+            this.btnMoreResetExcludes.Text = "Reset to Default List";
+            this.btnMoreResetExcludes.UseVisualStyleBackColor = true;
+            // 
             // txtMoreExcludeList
             // 
             this.txtMoreExcludeList.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtMoreExcludeList.Location = new System.Drawing.Point(6, 48);
+            this.txtMoreExcludeList.Location = new System.Drawing.Point(6, 74);
             this.txtMoreExcludeList.Multiline = true;
             this.txtMoreExcludeList.Name = "txtMoreExcludeList";
-            this.txtMoreExcludeList.Size = new System.Drawing.Size(238, 237);
-            this.txtMoreExcludeList.TabIndex = 1;
+            this.txtMoreExcludeList.Size = new System.Drawing.Size(238, 211);
+            this.txtMoreExcludeList.TabIndex = 2;
             // 
             // groupBox1
             // 
@@ -1267,6 +1295,15 @@ namespace GamepadPhoenix
             this.lblBigFont.Text = "lblBigFont";
             this.lblBigFont.Visible = false;
             // 
+            // pad
+            // 
+            this.pad.BackColor = System.Drawing.SystemColors.AppWorkspace;
+            this.pad.Location = new System.Drawing.Point(218, 14);
+            this.pad.Name = "pad";
+            this.pad.Size = new System.Drawing.Size(512, 390);
+            this.pad.TabIndex = 29;
+            this.pad.TabStop = false;
+            // 
             // tabPage1
             // 
             this.tabPage1.Location = new System.Drawing.Point(4, 23);
@@ -1316,9 +1353,6 @@ namespace GamepadPhoenix
             // 
             // groupBox7
             // 
-            this.groupBox7.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.groupBox7.Controls.Add(this.fire);
             this.groupBox7.Controls.Add(this.btnMoreHomepage);
             this.groupBox7.Controls.Add(this.btnMoreDonate);
@@ -1330,6 +1364,17 @@ namespace GamepadPhoenix
             this.groupBox7.TabIndex = 0;
             this.groupBox7.TabStop = false;
             this.groupBox7.Text = "About";
+            // 
+            // fire
+            // 
+            this.fire.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.fire.Location = new System.Drawing.Point(6, 19);
+            this.fire.Name = "fire";
+            this.fire.Size = new System.Drawing.Size(679, 240);
+            this.fire.TabIndex = 1;
+            this.fire.TabStop = false;
             // 
             // btnMoreHomepage
             // 
@@ -1496,37 +1541,6 @@ namespace GamepadPhoenix
             this.lblLoadingShadow.Size = new System.Drawing.Size(893, 227);
             this.lblLoadingShadow.TabIndex = 32;
             this.lblLoadingShadow.Visible = false;
-            // 
-            // btnLaunchSelectGameEXE
-            // 
-            this.btnLaunchSelectGameEXE.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnLaunchSelectGameEXE.Enabled = false;
-            this.btnLaunchSelectGameEXE.Location = new System.Drawing.Point(476, 45);
-            this.btnLaunchSelectGameEXE.Name = "btnLaunchSelectGameEXE";
-            this.btnLaunchSelectGameEXE.Size = new System.Drawing.Size(270, 22);
-            this.btnLaunchSelectGameEXE.TabIndex = 4;
-            this.btnLaunchSelectGameEXE.Text = "Select Game EXE";
-            this.btnLaunchSelectGameEXE.UseVisualStyleBackColor = true;
-            this.btnLaunchSelectGameEXE.Visible = false;
-            // 
-            // fire
-            // 
-            this.fire.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.fire.Location = new System.Drawing.Point(6, 19);
-            this.fire.Name = "fire";
-            this.fire.Size = new System.Drawing.Size(679, 240);
-            this.fire.TabIndex = 1;
-            // 
-            // pad
-            // 
-            this.pad.BackColor = System.Drawing.SystemColors.AppWorkspace;
-            this.pad.Location = new System.Drawing.Point(218, 14);
-            this.pad.Name = "pad";
-            this.pad.Size = new System.Drawing.Size(512, 390);
-            this.pad.TabIndex = 29;
-            this.pad.TabStop = false;
             // 
             // MainForm
             // 
