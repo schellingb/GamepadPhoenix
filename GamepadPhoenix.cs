@@ -1337,25 +1337,19 @@ namespace GamepadPhoenix
             }
             if (f.tabs.SelectedIndex == f.tabs.TabCount - 2)
             {
-                int itmmax = f.lstLaunchGames.Items.Count - 1;
+                int move = 0;
                 switch (btn)
                 {
-                    case GPIndices.DPAD_U: case GPIndices.LSTICK_U:
-                        f.lstLaunchGames.SelectedIndex = (f.lstLaunchGames.SelectedIndex > 0 ? f.lstLaunchGames.SelectedIndex - 1 : 0);
-                        return;
-                    case GPIndices.DPAD_D: case GPIndices.LSTICK_D:
-                        f.lstLaunchGames.SelectedIndex = (f.lstLaunchGames.SelectedIndex < itmmax ? f.lstLaunchGames.SelectedIndex + 1 : itmmax);
-                        return;
-                    case GPIndices.DPAD_L: case GPIndices.LSTICK_L:
-                        f.lstLaunchGames.SelectedIndex = (f.lstLaunchGames.SelectedIndex > 9 ? f.lstLaunchGames.SelectedIndex - 10 : 0);
-                        return;
-                    case GPIndices.DPAD_R: case GPIndices.LSTICK_R:
-                        f.lstLaunchGames.SelectedIndex = (f.lstLaunchGames.SelectedIndex < itmmax-9 ? f.lstLaunchGames.SelectedIndex + 10 : itmmax);
-                        return;
+                    case GPIndices.DPAD_U: case GPIndices.LSTICK_U: move =  -1; break;
+                    case GPIndices.DPAD_D: case GPIndices.LSTICK_D: move =   1; break;
+                    case GPIndices.DPAD_L: case GPIndices.LSTICK_L: move = -10; break;
+                    case GPIndices.DPAD_R: case GPIndices.LSTICK_R: move =  10; break;
                     case GPIndices.BTN_START: case GPIndices.BTN_A: case GPIndices.BTN_B: case GPIndices.BTN_X: case GPIndices.BTN_Y:
                         if (f.btnLaunch.Enabled) LaunchGame(true);
                         return;
                 }
+                if (move != 0)
+                    f.lstLaunchGames.SelectedIndex = Math.Min(f.lstLaunchGames.Items.Count - 1, Math.Max(0,  f.lstLaunchGames.SelectedIndex + move));
             }
         }
 
