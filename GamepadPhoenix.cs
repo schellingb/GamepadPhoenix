@@ -1322,7 +1322,7 @@ namespace GamepadPhoenix
                 switch (btn)
                 {
                     case GPIndices.BTN_R: case GPIndices.TRIGGER_R:
-                        f.tabs.SelectedIndex = f.tabs.SelectedIndex += (f.tabs.TabPages[f.tabs.SelectedIndex + 1].Text.Length == 0 ? 2 : 1);
+                        if (f.tabs.SelectedIndex < f.tabs.TabCount - 1) f.tabs.SelectedIndex = f.tabs.SelectedIndex += (f.tabs.TabPages[f.tabs.SelectedIndex + 1].Text.Length == 0 ? 2 : 1);
                         return;
                     case GPIndices.BTN_L: case GPIndices.TRIGGER_L:
                         if (f.tabs.SelectedIndex > 0) f.tabs.SelectedIndex -= (f.tabs.TabPages[f.tabs.SelectedIndex - 1].Text.Length == 0 ? 2 : 1);
