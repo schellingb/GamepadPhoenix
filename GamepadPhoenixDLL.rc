@@ -10,7 +10,7 @@
 		BLOCK "040904b0"
 		{
 			VALUE "FileDescription", "Gamepad Phoenix"
-			VALUE "FileVersion", "0.9"
+			VALUE "FileVersion", "0.9.1"
 			VALUE "InternalName", "GamepadPhoenix"
 			VALUE "LegalCopyright", "(C) 2021 Bernhard Schelling"
 			#ifdef X64
@@ -19,7 +19,7 @@
 			VALUE "OriginalFilename", "GamepadPhoenix32.dll"
 			#endif
 			VALUE "ProductName", "Gamepad Phoenix"
-			VALUE "ProductVersion", "0.9"
+			VALUE "ProductVersion", "0.9.1"
 		}
 	}
 	BLOCK "VarFileInfo"
