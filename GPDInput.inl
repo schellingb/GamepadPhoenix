@@ -1843,7 +1843,7 @@ static void Hook(bool forceLoad)
 		{
 			if (!forceLoad) fpLoadLibraryW(path); // Increase reference count to keep hooked library loaded until process ends
 			CreateHook((LPVOID)ModuleCreate8, "DirectInput8Create", GPDirectInput8Create, true, (LPVOID*)&ModuleCreate8);
-			WriteLog("Intercepting DirectInput8 DLL %S\n", path);
+			WriteLog("Intercepting DirectInput8 DLL %S%s\n", path, (forceLoad ? " (also used by Gamepad Phoenix)" : ""));
 		}
 		if (!g_hHeap) return;
 	}

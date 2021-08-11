@@ -31,7 +31,7 @@
 #define GPSTATIC_ASSERT(cond) typedef char _GPSTATIC_ASSERTN(__LINE__,__COUNTER__)[(cond)?1:-1]
 static bool DEBUGBROKE;
 #define DEBUGBREAKONCE do { if (!DEBUGBROKE) { DebugBreak(); DEBUGBROKE = true; } } while(0);
-#define WAITFORDEBUGGER if(!IsDebuggerPresent()){WriteLog("WAITING FOR DEBUGGER TO CONNECT TO PID %u...\n", GetCurrentProcessId());while(!IsDebuggerPresent())Sleep(10);}
+#define WAITFORDEBUGGER if(g_hHeap&&!IsDebuggerPresent()){WriteLog("WAITING FOR DEBUGGER TO CONNECT TO PID %u...\n", GetCurrentProcessId());while(!IsDebuggerPresent())Sleep(10);}
 
 #ifdef _MSC_VER
 #define GPINLINE __forceinline
@@ -79,7 +79,6 @@ struct GPData
 	GPGamepad Gamepads[NUM_GAMEPADS];
 	unsigned int InjectExcludes[MAX_EXCLUDES];
 	unsigned int ExcludeCount;
-	volatile unsigned int AttachCount;
 	GPOption Options;
 	volatile bool IsInject, FromGUI;
 	volatile unsigned char Recursion;
@@ -149,9 +148,9 @@ static char MyEXEName[32];
 static unsigned int CaptureSources;
 static volatile unsigned int InputLock;
 static volatile unsigned int KnownLibrariesLock;
+static volatile unsigned int FirstThreadLock;
 static GPVector<unsigned int> KnownLibraries;
 static GPVector<void (*)(GPGamepad&)> InputUpdaters;
-static bool InputSetupDone;
 static bool GameUsesXInput;
 static bool ForceVirtualDevices;
 static const wchar_t* (*XDIGetDevName)(unsigned int devNum);
@@ -163,7 +162,7 @@ static int SNPrintF(char *buffer, size_t count, const char *format, ...) { va_li
 
 static void RunInputUpdaters(GPGamepad& gp);
 static void GPInterlockedAdd(volatile unsigned int* p, int add) { for (;;)  { unsigned int i = *p; if (InterlockedCompareExchange(p, (i+add), i) == i) return; } }
-static bool GPLock(volatile unsigned int* p, DWORD timeout) { for (DWORD i = 0, t = (timeout<<24); InterlockedCompareExchange(p, 1, 0); i++) { if (i>t) return false; Sleep(0); } return true; }
+static bool GPLock(volatile unsigned int* p, DWORD timeout = 0) { for (DWORD i = 0, t = (timeout<<24); InterlockedCompareExchange(p, 1, 0); i++) { if (i>=t) return false; Sleep(0); } return true; }
 static int LogIndent(int modify = 0);
 
 static void VWriteLog(const char* fmt, va_list ap)
@@ -242,7 +241,7 @@ static void CreateMiniDump()
 static int LogIndent(int modify)
 {
 	struct LogThread { DWORD ThreadId; int Indent; };
-	static ZVector<LogThread> LogThreads;
+	static GPVector<LogThread> LogThreads;
 	DWORD tid = GetCurrentThreadId();
 	for (LogThread& lt : LogThreads) { if (lt.ThreadId == tid) { return (lt.Indent += modify); } }
 	LogThreads.push_back({tid, modify});
@@ -323,14 +322,11 @@ static bool AlreadyHooked(LPVOID pTarget, LPVOID* ppOriginal = NULL)
 #include "GPDInput.inl"
 #include "GPWinMM.inl"
 
-static void InputSetup(bool forceAllInterfaces)
+static void InputSetup()
 {
-	LOGSCOPE("forceAllInterfaces: %d", forceAllInterfaces);
-	GPASSERT(!InputSetupDone);
-	InputSetupDone = true;
-	bool useX = forceAllInterfaces;
-	bool useD = forceAllInterfaces;
-	if (!forceAllInterfaces)
+	LOGSCOPE("IsUILoadAllInterfaces: %d", !g_hHeap);
+	bool useX = !g_hHeap, useD = useX; // UI always needs all interfaces
+	if (!useX)
 		for (GPGamepad& gp : pGPData->Gamepads)
 			for (unsigned int i = 0; i != _GPIDX_MAX; i++)
 				switch (GPIDGetInterface(gp.IDs[i]))
@@ -348,7 +344,6 @@ static void RunInputUpdaters(GPGamepad& gp)
 	//LOGSCOPE("GP: %d - InputLock: %d", (&gp - pGPData->Gamepads), InputLock);
 	if (InputLock) return;
 	GPLock(&InputLock, 3);
-	if (!InputSetupDone) InputSetup(false);
 	for (void (*fn)(GPGamepad&) : InputUpdaters) fn(gp);
 	InputLock = 0;
 }
@@ -398,7 +393,7 @@ struct GPInject
 		if (known) return LoadLibraryLambda();
 
 		LOGSCOPE((isW ? "DLL: %S - GameUsesXInput: %d - IsXInput: %d" : "DLL: %s - GameUsesXInput: %d - IsXInput: %d"), path, GameUsesXInput, (isW ? IsXInput((const wchar_t*)path) : IsXInput((const char*)path)));
-		if (!GameUsesXInput && (isW ? IsXInput((const wchar_t*)path) : IsXInput((const char*)path))) GameUsesXInput = true;
+		if (!InputLock && !GameUsesXInput && (isW ? IsXInput((const wchar_t*)path) : IsXInput((const char*)path))) GameUsesXInput = true;
 
 		HMODULE res = LoadLibraryLambda();
 		RefreshHooks();
@@ -644,9 +639,8 @@ BOOL WINAPI DllMain(HINSTANCE const instance, DWORD const reason, LPVOID const r
 		wchar_t* pDLLBits = MyDLLPath + GetModuleFileNameW(instance, MyDLLPath, (sizeof(MyDLLPath)/sizeof(MyDLLPath[0])-1)) - 6;
 		bool isIndirectDLL = (pDLLBits[0] != '3' && pDLLBits[0] != '6');
 
-		//WriteLog("[DLL] Attach - MyDLL: %S - AttachCount: %d - IsInject: %d\n", MyDLLPath, pGPData->AttachCount, pGPData->IsInject);
+		//WriteLog("[DLL] Attach - MyDLL: %S - IsInject: %d\n", MyDLLPath, pGPData->IsInject);
 
-		GPInterlockedAdd(&pGPData->AttachCount, 1);
 		if (isInject || isIndirectDLL)
 		{
 			WriteLog("Loaded Gamepad Phoenix extension into program\n");
@@ -665,19 +659,19 @@ BOOL WINAPI DllMain(HINSTANCE const instance, DWORD const reason, LPVOID const r
 			}
 			if ((pGPData->Options & (OPTION_Disable_XInput|OPTION_Disable_DirectInput|OPTION_Disable_MMSys)) == (OPTION_Disable_DirectInput|OPTION_Disable_MMSys))
 				GameUsesXInput = true;
+
 			MH_Initialize();
 			HookKernel();
 			RefreshHooks();
+
+			// We acquire all needed input interfaces as early as possible to avoid someone hooking into the API (like Steam does with XInput)
+			GPLock(&InputLock, 3);
+			InputSetup();
+			InputLock = 0;
 		}
 	}
-	//else if (reason == DLL_PROCESS_DETACH)
-	//{
-	//	WriteLog("[DLL] Detach - MyDLL: %S\n", MyDLLPath);
-	//}
-	static bool firstRealThread;
-	if (reason == DLL_THREAD_ATTACH && g_hHeap && !firstRealThread)
+	if (reason == DLL_THREAD_ATTACH && g_hHeap && GPLock(&FirstThreadLock))
 	{
-		firstRealThread = true;
 		char strParentPid[16];
 		DWORD len = GetEnvironmentVariableA("GPPRNTPID", strParentPid, 16);
 		DWORD parentPid = 0;
@@ -718,7 +712,7 @@ bool WINAPI UIPad(int idx, unsigned int* ids, unsigned short* vals, unsigned int
 	{
 		if (gp.Used)
 		{
-			if (!InputSetupDone) InputSetup(true);
+			if (InputUpdaters.empty()) InputSetup();
 			CaptureSources = captureSources;
 			RunInputUpdaters(gp);
 		}
@@ -798,7 +792,7 @@ void WINAPI UILaunch(const wchar_t* commandLine, const wchar_t* startDir)
 const wchar_t* WINAPI UIGetDIName(unsigned int devNum)
 {
 	#pragma GPLINKER_DLL_EXPORT
-	if (!InputSetupDone) InputSetup(true);
+	if (InputUpdaters.empty()) InputSetup();
 	return XDIGetDevName(devNum);
 }
 

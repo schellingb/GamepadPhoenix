@@ -165,6 +165,7 @@ DWORD WINAPI GPXInputGetState(DWORD dwUserIndex, GPXINPUT_STATE* pState)
 {
 	#pragma GPLINKER_DLL_EXPORT_AS_HINT(XInputGetState, 2)
 	LOGSCOPE("dwUserIndex: %u - pState: %p - Prev PacketNumber: %u - %s", dwUserIndex, pState, pState->dwPacketNumber, (dwUserIndex >= GPXI_XUSER_MAX_COUNT ? "INVALID USER INDEX" : (pGPData->Gamepads[dwUserIndex].Used ? "CONNECTED GAMEPAD" : "GAMEPAD NOT CONNECTED")));
+	if (!GameUsesXInput) GameUsesXInput = true;
 	if (dwUserIndex >= GPXI_XUSER_MAX_COUNT) return ERROR_BAD_ARGUMENTS;
 
 	GPGamepad& gp = pGPData->Gamepads[dwUserIndex];
@@ -226,6 +227,7 @@ DWORD WINAPI GPXInputSetState(DWORD dwUserIndex, GPXINPUT_VIBRATION* pVibration)
 {
 	#pragma GPLINKER_DLL_EXPORT_AS_HINT(XInputSetState, 3)
 	//WriteLog("[GPXInputSetState] dwUserIndex: %u - pVibration: %p\n", dwUserIndex, pVibration);
+	if (!GameUsesXInput) GameUsesXInput = true;
 	if (dwUserIndex >= GPXI_XUSER_MAX_COUNT || !pVibration) return ERROR_BAD_ARGUMENTS;
 	if (!pGPData->Gamepads[dwUserIndex].Used || !CheckStarted(dwUserIndex)) return ERROR_DEVICE_NOT_CONNECTED;
 	//TODO: Vibration
@@ -236,6 +238,7 @@ DWORD WINAPI GPXInputGetCapabilities(DWORD dwUserIndex, DWORD dwFlags, GPXINPUT_
 {
 	#pragma GPLINKER_DLL_EXPORT_AS_HINT(XInputGetCapabilities, 4)
 	//WriteLog("[GPXInputGetCapabilities] dwUserIndex: %u - dwFlags: 0x%x - pCapabilities: %p\n", dwUserIndex, dwFlags, pCapabilities);
+	if (!GameUsesXInput) GameUsesXInput = true;
 	if (dwUserIndex >= GPXI_XUSER_MAX_COUNT || (dwFlags & ~GPXI_FLAG_GAMEPAD) || !pCapabilities) return ERROR_BAD_ARGUMENTS;
 	if (!pGPData->Gamepads[dwUserIndex].Used || !CheckStarted(dwUserIndex)) return ERROR_DEVICE_NOT_CONNECTED;
 	pCapabilities->Type = GPXI_DEVTYPE_GAMEPAD;
@@ -251,6 +254,7 @@ DWORD WINAPI GPXInputGetCapabilities(DWORD dwUserIndex, DWORD dwFlags, GPXINPUT_
 void WINAPI GPXInputEnable(BOOL enable) // not in xinput9_1_0
 {
 	#pragma GPLINKER_DLL_EXPORT_AS_HINT(XInputEnable, 5)
+	if (!GameUsesXInput) GameUsesXInput = true;
 	//WriteLog("[GPXInputEnable] UNSUPPORTED - enable: %d\n", enable);
 	//DEBUGBREAKONCE
 	//fpXInputEnable(enable);
@@ -355,6 +359,7 @@ static void Hook(bool forceLoad = false)
 	bool redoForceLoad = false;
 	redo:
 	static short LoadedNs;
+	static HMODULE LoadedHms[10];
 	if (LoadedNs == ((1<<10)-1)) return;
 	for (unsigned char n = 0; n != 10; n++)
 	{
@@ -368,8 +373,9 @@ static void Hook(bool forceLoad = false)
 		const wchar_t* path = (n < 5 ? buf : base);
 		HMODULE hmXInput = (forceLoad ? fpLoadLibraryW : GetModuleHandleW)(path);
 		if (!hmXInput) continue;
-
+		LoadedHms[n] = hmXInput;
 		LoadedNs |= (1<<n);
+		if (LoadedHms[n + (n < 5 ? 5 : -5)] == hmXInput) continue;
 		if (!forceLoad) GameUsesXInput = true;
 		if (fpGetProcAddress(hmXInput, "UIPad")) continue; // skip if its our own fake DLL
 
@@ -393,17 +399,23 @@ static void Hook(bool forceLoad = false)
 			CreateHook(hmXInput,  103, "XInputPowerOffController",    GPXInputPowerOffController,        false);
 			CreateHook(hmXInput,  104, "XInputGetBaseBusInformation", GPXInputGetBaseBusInformation,     false);
 			CreateHook(hmXInput,  108, "XInputGetCapabilitiesEx",     GPXInputGetCapabilitiesEx,          true);
-			WriteLog("Intercepting XInput DLL %S\n", path);
+			WriteLog("Intercepting XInput DLL %S%s\n", path, (forceLoad ? " (also used by Gamepad Phoenix)" : ""));
 			if (fpGetProcAddress(hmXInput, "Reset"))
 				WriteLog("Detected usage of XInput emulator DLL, this might lead to unwanted results.\n");
 		}
-		if ((n % VERSIONCOUNT) < IDXVERSION910 || forceLoad) OrgGetState = (GPXInputGetStateFN)pGetState;
-		else if (!OrgGetState)
+		if (!OrgGetState)
 		{
-			// Modern 9_1_0 DLLs internally redirect to newer DLL versions so we avoid its GetState in games that use 9_1_0.
-			// If we didn't explicitly force load and use any of the new versions here, our hooks could get removed by
-			// whatever 9_1_0 does internally once we start calling that GetState.
-			redoForceLoad = true;
+			if ((n % VERSIONCOUNT) < IDXVERSION910 || forceLoad)
+			{
+				OrgGetState = (GPXInputGetStateFN)pGetState;
+			}
+			else
+			{
+				// Modern 9_1_0 DLLs internally redirect to newer DLL versions so we avoid its GetState in games that use 9_1_0.
+				// If we didn't explicitly force load and use any of the new versions here, our hooks could get removed by
+				// whatever 9_1_0 does internally once we start calling that GetState.
+				redoForceLoad = true;
+			}
 		}
 		if (forceLoad) return;
 	}
@@ -413,7 +425,7 @@ static void Hook(bool forceLoad = false)
 static void SetupInput()
 {
 	LOGSCOPE("XInput loaded already: %d", !!OrgGetState);
-	if (!OrgGetState) { bool b = GameUsesXInput; Hook(true); GameUsesXInput = b; }
+	if (!OrgGetState) Hook(true);
 	if (!OrgGetState) return; // XInput not available on this system
 
 	static GPXINPUT_STATE states[2][GPXI_XUSER_MAX_COUNT];
