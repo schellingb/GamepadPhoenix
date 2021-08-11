@@ -568,6 +568,19 @@ namespace GamepadPhoenix
                         if (dllName.StartsWith(dll + ".DLL\0", StringComparison.OrdinalIgnoreCase) && CopyDLL(dir, dll, machine))
                             return true;
                 }
+                byte[] buf = new byte[8192];
+                int earliestDLLOverride = DllOverrides.Length;
+                for (long i = 0; earliestDLLOverride > 0; i += 8192-16)
+                {
+                    if (fs.Seek(i, SeekOrigin.Begin) != i || fs.Read(buf, 0, 8192) <= 0) break;
+                    string bufstr = System.Text.Encoding.ASCII.GetString(buf);
+                    if (bufstr.IndexOf("INPUT", StringComparison.OrdinalIgnoreCase) == -1) continue;
+                    for (int dll = 0; dll != earliestDLLOverride; dll++)
+                        if (bufstr.IndexOf(DllOverrides[dll] + ".DLL", StringComparison.OrdinalIgnoreCase) != -1)
+                            { earliestDLLOverride = dll; break; }
+                }
+                if (earliestDLLOverride != DllOverrides.Length && CopyDLL(dir, DllOverrides[earliestDLLOverride], machine))
+                    return true;
                 if (MessageBox.Show("Game might not support indirect loading (no overridable DLLs imported).\n\nDo you want to try to prepare it anyway?", "Prepare", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                     foreach (string dll in DllOverrides)
                         if (CopyDLL(dir, dll, machine))
