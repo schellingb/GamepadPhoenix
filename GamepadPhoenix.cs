@@ -23,8 +23,8 @@ using GamepadPhoenix;
 
 [assembly: System.Reflection.AssemblyTitle("Gamepad Phoenix")]
 [assembly: System.Reflection.AssemblyProduct("Gamepad Phoenix")]
-[assembly: System.Reflection.AssemblyVersion("0.9.1")]
-[assembly: System.Reflection.AssemblyFileVersion("0.9.1")]
+[assembly: System.Reflection.AssemblyVersion("0.9.2")]
+[assembly: System.Reflection.AssemblyFileVersion("0.9.2")]
 [assembly: System.Reflection.AssemblyCopyright("(C) 2021 Bernhard Schelling")]
 [assembly: System.Runtime.InteropServices.ComVisible(false)]
 

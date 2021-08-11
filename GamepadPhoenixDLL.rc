@@ -1,7 +1,7 @@
 #include <windows.h>
 1 VERSIONINFO
-	FILEVERSION     0,9,1,0
-	PRODUCTVERSION  0,9,1,0
+	FILEVERSION     0,9,2,0
+	PRODUCTVERSION  0,9,2,0
 	FILEOS          VOS_NT_WINDOWS32
 	FILETYPE        VFT_DLL
 {
@@ -10,7 +10,7 @@
 		BLOCK "040904b0"
 		{
 			VALUE "FileDescription", "Gamepad Phoenix"
-			VALUE "FileVersion", "0.9.1"
+			VALUE "FileVersion", "0.9.2"
 			VALUE "InternalName", "GamepadPhoenix"
 			VALUE "LegalCopyright", "(C) 2021 Bernhard Schelling"
 			#ifdef X64
@@ -19,7 +19,7 @@
 			VALUE "OriginalFilename", "GamepadPhoenix32.dll"
 			#endif
 			VALUE "ProductName", "Gamepad Phoenix"
-			VALUE "ProductVersion", "0.9.1"
+			VALUE "ProductVersion", "0.9.2"
 		}
 	}
 	BLOCK "VarFileInfo"
