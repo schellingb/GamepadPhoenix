@@ -17,6 +17,7 @@ Map Controller|Setup Games|More
 - Create controller presets, load one by pressing a single button
 - Easy reordering of controllers
 - Tool can be navigated by gamepad
+- Borderless fullscreen for any game
 
 ## Download
 You can download the latest version of Gamepad Phoenix for free (donations welcome!) on [itch.io](https://schelling.itch.io/gamepad-phoenix).  
