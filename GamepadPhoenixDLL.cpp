@@ -51,6 +51,7 @@ enum GPOption : unsigned short
 	OPTION_Disable_XInput       = 0x200,
 	OPTION_Disable_DirectInput  = 0x400,
 	OPTION_Disable_MMSys        = 0x800,
+	OPTION_FullscreenWindow     = 0x4000,
 };
 
 enum GPIndices : unsigned char
@@ -607,6 +608,56 @@ static void HookKernel()
 	}
 }
 
+struct GPFullscreenize
+{
+	typedef LONG (WINAPI *PFN_SetWindowLongA)(HWND hWnd, int nIndex, LONG dwNewLong);
+	typedef BOOL (WINAPI *PFN_SetWindowPos)  (HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags);
+	typedef LONG (WINAPI *PFN_GetWindowLongA)(HWND hWnd, int nIndex);
+	static PFN_SetWindowLongA fpSetWindowLongA;
+	static PFN_SetWindowPos   fpSetWindowPos;
+	static PFN_GetWindowLongA fpGetWindowLongA;
+
+	static void Prepare()
+	{
+		HMODULE hUser32 = fpLoadLibraryW(L"User32");
+		if (!hUser32) { GPASSERT(0); return; }
+		fpSetWindowLongA = (PFN_SetWindowLongA)fpGetProcAddress(hUser32, "SetWindowLongA");
+		fpSetWindowPos   = (PFN_SetWindowPos)  fpGetProcAddress(hUser32, "SetWindowPos");
+		fpGetWindowLongA = (PFN_GetWindowLongA)fpGetProcAddress(hUser32, "GetWindowLongA");
+		GPASSERT(fpSetWindowLongA && fpSetWindowPos && fpGetWindowLongA);
+		CloseHandle(CreateThread(0, 0, WindowedFullscreenThread, NULL, 0, 0));
+	}
+
+	static DWORD WINAPI WindowedFullscreenThread(LPVOID)
+	{
+		Sleep(1000); // give application time to prepare (otherwise games like Guacamele might end up with stretched non-native resolution)
+		for (DWORD pid = GetCurrentProcessId(), hwndPid;;Sleep(200))
+		{
+			for (HWND hwnd = NULL; (hwnd = FindWindowEx(NULL, hwnd, NULL, NULL)) != NULL;)
+			{
+				if (!GetWindowThreadProcessId(hwnd, &hwndPid) || hwndPid != pid) continue;
+				LONG style = fpGetWindowLongA(hwnd, GWL_STYLE);
+				if (!(style & WS_VISIBLE)) continue;
+				HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+				MONITORINFO info = { sizeof(info) };
+				GetMonitorInfo(monitor, &info);
+				RECT rc, &mr = info.rcMonitor;
+				GetWindowRect(hwnd, &rc);
+				if (rc.left != mr.left || rc.top != mr.top || rc.right != mr.right || rc.bottom != mr.bottom)
+				{
+					fpSetWindowLongA(hwnd, GWL_STYLE, style & ~(WS_CAPTION | WS_THICKFRAME | WS_MINIMIZE | WS_MAXIMIZE | WS_SYSMENU));
+					fpSetWindowPos(hwnd, NULL, mr.left, mr.top, mr.right - mr.left, mr.bottom - mr.top, SWP_FRAMECHANGED);
+				}
+				return 0;
+			}
+		}
+	}
+};
+
+GPFullscreenize::PFN_SetWindowLongA GPFullscreenize::fpSetWindowLongA;
+GPFullscreenize::PFN_SetWindowPos   GPFullscreenize::fpSetWindowPos;
+GPFullscreenize::PFN_GetWindowLongA GPFullscreenize::fpGetWindowLongA;
+
 BOOL WINAPI DllMain(HINSTANCE const instance, DWORD const reason, LPVOID const reserved)
 {
 	if (reason == DLL_PROCESS_ATTACH)
@@ -684,6 +735,8 @@ BOOL WINAPI DllMain(HINSTANCE const instance, DWORD const reason, LPVOID const r
 			WaitForSingleObject(hParent, 2000);
 			CloseHandle(hParent);
 		}
+		if (pGPData->Options & OPTION_FullscreenWindow)
+			GPFullscreenize::Prepare();
 	}
 	return TRUE;
 }
