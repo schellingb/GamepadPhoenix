@@ -514,7 +514,7 @@ namespace GamepadPhoenix
             if (!fi.Exists) return Ver.None;
             int len = (int)fi.Length;
             if (len == Funcs.SizeDLL32 || len == Funcs.SizeDLL64) { return Ver.Current; }
-            try { using (FileStream fs = new FileStream(path, FileMode.Open))
+            try { using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 ushort machine = 0; long rvaOffset = 0;
                 return (System.Text.Encoding.ASCII.GetString(ReadDirectory(fs, 0, ref machine, ref rvaOffset)).IndexOf("\0UIPad\0") != -1 ? Ver.Old : Ver.None); // also contains original linked dll file name
@@ -552,7 +552,7 @@ namespace GamepadPhoenix
 
         internal static bool PrepareIndirectDLL(string target)
         {
-            try { using (FileStream fs = new FileStream(target, FileMode.Open))
+            try { using (FileStream fs = new FileStream(target, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
                 string dir = Path.GetDirectoryName(target);
                 ushort machine = 0; long rvaOffset = 0;
@@ -567,6 +567,8 @@ namespace GamepadPhoenix
                     foreach (string dll in DllOverrides)
                         if (dllName.StartsWith(dll + ".DLL\0", StringComparison.OrdinalIgnoreCase) && CopyDLL(dir, dll, machine))
                             return true;
+                    if (dllName.StartsWith("UNITYPLAYER.DLL\0", StringComparison.OrdinalIgnoreCase) && CopyDLL(dir, "XINPUT1_3", machine))
+                        return true;
                 }
                 byte[] buf = new byte[8192];
                 int earliestDLLOverride = DllOverrides.Length;
@@ -583,7 +585,7 @@ namespace GamepadPhoenix
                     return true;
                 if (MessageBox.Show("Game might not support indirect loading (no overridable DLLs imported).\n\nDo you want to try to prepare it anyway?", "Prepare", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                     foreach (string dll in DllOverrides)
-                        if (CopyDLL(dir, dll, machine))
+                        if ((machine != 0x8664 || dll != "DINPUT8") && CopyDLL(dir, dll, machine)) // Assume 64 bit apps to be more likely to use XINPUT and not DINPUT
                             return true;
             }} catch (Exception e) { MessageBox.Show("Game could not be prepared for indirect loading:\n" + e.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Stop); }
             return false;
