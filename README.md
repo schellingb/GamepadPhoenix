@@ -86,6 +86,9 @@ The following per-game options can be toggled by clicking on the Options box in 
 - __Disable MMSys (return no joystick or only fake XInput gamepads)__  
   When set, Gamepad Phoenix will not return MMSys specific gamepads (with separate axis for the two triggers) but instead return only controllers when XInput is also used.
 
+- __Force game window to borderless fullscreen__
+  Will resize the game window to fill the entire screen. Useful for games that don't support this natively.
+
 #### Indirect Loading
 The game option 'Use Indirect Loading' can be required for some games that refuse to run directly by launching the .EXE file.  
 Things like launchers, updaters or game stores can make the direct loading method not work.  
