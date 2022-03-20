@@ -1993,7 +1993,10 @@ static void SetupInput()
 	static bool deviceUpdateNeeded;
 	static GPDirectInputInterface* dii;
 
-	if (ModuleCreate8(GetModuleHandleW(NULL), 0x800, GPDI_GUID_IDirectInput8W, &dii, 0) != S_OK || !dii) { GPASSERT(false); return; } // invalid dinput?
+	EnterDirectInputCall();
+	HRESULT createRes = ModuleCreate8(GetModuleHandleW(NULL), 0x800, GPDI_GUID_IDirectInput8W, &dii, 0);
+	LeaveDirectInputCall();
+	if (createRes != S_OK || !dii) { GPASSERT(false); return; } // invalid dinput?
 	//dii = (GPDirectInputInterface*)new Report::DirectInputInterface(dii, true);
 
 	struct GPDICallbacks
