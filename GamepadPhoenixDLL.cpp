@@ -369,9 +369,9 @@ struct GPInject
 		private: void *lm; TRET(LambdaRef<TRET>::*fn)()const; LambdaRef<TRET>& operator=(const LambdaRef<TRET>&) const;
 	};
 
-	template <typename TCHAR> static bool MatchNoCase(const TCHAR* str, const char* find) // This can't search for any of @[\]^_
+	template <typename TCHAR> static bool MatchNoCase(const TCHAR* str, const char* find)
 	{
-		for (; *str && *find; str++, find++) if ((*str|((*str>='A'&&*str<='Z')?0x20:0))!=*find) return false;
+		for (; *str && *find; str++, find++) if (((*str>'Z'||*str<'A')?*str:*str|0x20)!=*find) return false;
 		return true;
 	}
 
@@ -385,6 +385,10 @@ struct GPInject
 	static HMODULE MyLoadLibrary(const void* path, LambdaRef<HMODULE>&& LoadLibraryLambda, bool isW)
 	{
 		unsigned int hash = HashPath(path, isW);
+
+		// Disallow loading of hid.dll unless for us while calling DirectInput.
+		// This disallows games to access hardware directly and forces them to use the APIs we intercept (SDL2 does this)
+		if (hash == 0x9415504E && !GPDInput::InDirectInputCall) return NULL;
 
 		// Some games keep hammering LoadLibrary calls, so remember a list of previously loaded libraries
 		GPLock(&KnownLibrariesLock, 2);
