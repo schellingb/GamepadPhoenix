@@ -6,7 +6,8 @@
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '14.0' Or '$(PlatformToolsetVersion)' == '140' Or '$(MSBuildToolsVersion)' == '14.0'">2015</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '15.0' Or '$(PlatformToolsetVersion)' == '141' Or '$(MSBuildToolsVersion)' == '15.0'">2017</VisualStudioYear>
     <VisualStudioYear Condition="'$(VisualStudioVersion)' == '16.0' Or '$(PlatformToolsetVersion)' == '142' Or '$(MSBuildToolsVersion)' == '16.0'">2019</VisualStudioYear>
-    <VisualStudioYear Condition="'$(VisualStudioYear)' == ''">20XX</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioVersion)' == '17.0' Or '$(PlatformToolsetVersion)' == '143' Or '$(MSBuildToolsVersion)' == '17.0'">2022</VisualStudioYear>
+    <VisualStudioYear Condition="'$(VisualStudioYear)' == ''">9999</VisualStudioYear>
   </PropertyGroup>
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -30,7 +31,8 @@
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2015'">v140</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2017'">v141</PlatformToolset>
     <PlatformToolset Condition="'$(VisualStudioYear)' == '2019'">v142</PlatformToolset>
-    <PlatformToolset Condition="'$(VisualStudioYear)' == '20XX'">$(DefaultPlatformToolset)</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '2022'">v143</PlatformToolset>
+    <PlatformToolset Condition="'$(VisualStudioYear)' == '9999'">$(DefaultPlatformToolset)</PlatformToolset>
     <UseOfMfc>false</UseOfMfc>
     <CharacterSet>NotSet</CharacterSet>
     <WholeProgramOptimization Condition="'$(Configuration)'=='Release'">true</WholeProgramOptimization>
