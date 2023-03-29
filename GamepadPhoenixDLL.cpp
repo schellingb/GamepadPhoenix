@@ -1,5 +1,5 @@
 /* Gamepad Phoenix
-* Copyright (c) 2021-2022 Bernhard Schelling
+* Copyright (c) 2021-2023 Bernhard Schelling
 *
 * Gamepad Phoenix is free software: you can redistribute it and/or modify it under the terms
 * of the GNU General Public License as published by the Free Software Found-
@@ -155,6 +155,7 @@ static GPVector<void (*)(GPGamepad&)> InputUpdaters;
 static bool GameUsesXInput;
 static bool ForceVirtualDevices;
 static const wchar_t* (*XDIGetDevName)(unsigned int devNum);
+static void (WINAPI *HookPluginHook)(void (*pWriteLog)(const char *,...));
 static HMODULE (WINAPI *fpLoadLibraryW)(LPCWSTR lpLibFileName) = &LoadLibraryW;
 static FARPROC (WINAPI *fpGetProcAddress)(HMODULE hModule, LPCSTR lpProcName) = &GetProcAddress;
 static BOOL (WINAPI *fpCreateProcessW)(LPCWSTR, LPWSTR, LPSECURITY_ATTRIBUTES, LPSECURITY_ATTRIBUTES, BOOL, DWORD, LPVOID, LPCWSTR, LPSTARTUPINFOW, LPPROCESS_INFORMATION) = &CreateProcessW;
@@ -357,6 +358,7 @@ static void RefreshHooks()
 	GPXInput::Hook();
 	GPDInput::Hook();
 	GPWinMM::Hook();
+	if (HookPluginHook) HookPluginHook(&WriteLog);
 	InputLock = 0;
 }
 
@@ -703,14 +705,20 @@ BOOL WINAPI DllMain(HINSTANCE const instance, DWORD const reason, LPVOID const r
 			{
 				pGPData->FromGUI = false;
 				pGPData->Recursion = 0;
-				wchar_t *dllExt = pDLLBits + 3, orgDllExt[3];
+				wchar_t *dllExt = pDLLBits + 3, orgDllExt[3], hookPlugin[MAX_PATH];
 				memcpy(orgDllExt, dllExt, sizeof(orgDllExt));
 				memcpy(dllExt, L"INI", sizeof(orgDllExt));
 				GetPrivateProfileStructW(L"GamepadPhoenix", L"Options", &pGPData->Options, sizeof(pGPData->Options), MyDLLPath);
 				GetPrivateProfileStructW(L"GamepadPhoenix", L"ExcludeCount", &pGPData->ExcludeCount, sizeof(pGPData->ExcludeCount), MyDLLPath);
 				GetPrivateProfileStructW(L"GamepadPhoenix", L"InjectExcludes", &pGPData->InjectExcludes, sizeof(pGPData->InjectExcludes[0])*pGPData->ExcludeCount, MyDLLPath);
+				GetPrivateProfileStringW(L"GamepadPhoenix", L"HookPlugin", NULL, hookPlugin, sizeof(hookPlugin)/sizeof(*hookPlugin), MyDLLPath);
 				//WriteLog("[DLL] Indirect - INI: %S - Mode: %d - Options: %d - ExcludeCount: %d\n", MyDLLPath, pGPData->Mode, pGPData->Options, pGPData->ExcludeCount);
 				memcpy(dllExt, orgDllExt, sizeof(orgDllExt));
+				if (hookPlugin[0])
+				{
+					HookPluginHook = (void (WINAPI*)(void (*pWriteLog)(const char *,...)))fpGetProcAddress(fpLoadLibraryW(hookPlugin), "GamepadPhoenixHook");
+					WriteLog("%s HookPlugin '%S'\n", (HookPluginHook ? "Using" : "Failed to load"), hookPlugin);
+				}
 			}
 			if ((pGPData->Options & (OPTION_Disable_XInput|OPTION_Disable_DirectInput|OPTION_Disable_MMSys)) == (OPTION_Disable_DirectInput|OPTION_Disable_MMSys))
 				GameUsesXInput = true;
