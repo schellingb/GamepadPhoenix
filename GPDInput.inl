@@ -1,5 +1,5 @@
 /* Gamepad Phoenix
-* Copyright (c) 2021-2022 Bernhard Schelling
+* Copyright (c) 2021-2023 Bernhard Schelling
 *
 * Gamepad Phoenix is free software: you can redistribute it and/or modify it under the terms
 * of the GNU General Public License as published by the Free Software Found-
@@ -516,7 +516,7 @@ struct GPDIKeyboardState
 
 struct GPDIObj
 {
-	enum EMap : unsigned char { NONE, AXIS_PAIR, AXIS_SINGLE, BUTTON, DPAD, AXIS_UNMAPPED, AXIS_MERGELSTICKANDDPAD };
+	enum EMap : unsigned char { NONE, AXIS_STICK, AXIS_MERGELSTICKANDDPAD, AXIS_PAIR, AXIS_SINGLE, BUTTON, DPAD, AXIS_UNMAPPED };
 	const WCHAR* Name;
 	const GUID* Guid;
 	WORD Type, Flags, CollectionNumber, UsagePage, Usage, Dimension;
@@ -558,14 +558,14 @@ struct GPDirectInputDevice
 		int gpidx_btn_l     = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_L : GPIDX_BTN_L);
 		int gpidx_btn_r     = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_R : GPIDX_BTN_R);
 
-		Objs.push_back({ L"X Axis",     &GPDI_GUID_ObjXAxis,      GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 1, 1, 48,  0, 0, 0xFFFF, GPDIObj::AXIS_PAIR,    GPIDX_LSTICK_L });
-		Objs.push_back({ L"Y Axis",     &GPDI_GUID_ObjYAxis,      GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 1, 1, 49,  0, 0, 0xFFFF, GPDIObj::AXIS_PAIR,    GPIDX_LSTICK_U });
+		Objs.push_back({ L"X Axis",     &GPDI_GUID_ObjXAxis,      GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 1, 1, 48,  0, 0, 0xFFFF, GPDIObj::AXIS_STICK,   GPIDX_LSTICK_L });
+		Objs.push_back({ L"Y Axis",     &GPDI_GUID_ObjYAxis,      GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 1, 1, 49,  0, 0, 0xFFFF, GPDIObj::AXIS_STICK,   GPIDX_LSTICK_U });
 		if (isXInputPad)
 			Objs.push_back({ L"Z Axis",     &GPDI_GUID_ObjZAxis,  GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 3, 1, 50,  0, 0xFFFF, 0, GPDIObj::AXIS_PAIR,    gpidx_trigger_l });
 		if (!isXInputPad && !useTriggersToButtons)
 			Objs.push_back({ L"Z Axis",     &GPDI_GUID_ObjZAxis,  GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 3, 1, 50,  0, 0, 0xFFFF, GPDIObj::AXIS_SINGLE,  gpidx_trigger_l });
-		Objs.push_back({ L"X Rotation", &GPDI_GUID_ObjRxAxis,     GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 2, 1, 51,  0, 0, 0xFFFF, GPDIObj::AXIS_PAIR,    GPIDX_RSTICK_L });
-		Objs.push_back({ L"Y Rotation", &GPDI_GUID_ObjRyAxis,     GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 2, 1, 52,  0, 0, 0xFFFF, GPDIObj::AXIS_PAIR,    GPIDX_RSTICK_U });
+		Objs.push_back({ L"X Rotation", &GPDI_GUID_ObjRxAxis,     GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 2, 1, 51,  0, 0, 0xFFFF, GPDIObj::AXIS_STICK,   GPIDX_RSTICK_L });
+		Objs.push_back({ L"Y Rotation", &GPDI_GUID_ObjRyAxis,     GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 2, 1, 52,  0, 0, 0xFFFF, GPDIObj::AXIS_STICK,   GPIDX_RSTICK_U });
 		if (!isXInputPad && !useTriggersToButtons)
 			Objs.push_back({ L"Z Rotation", &GPDI_GUID_ObjRzAxis, GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 3, 1, 53,  0, 0, 0xFFFF, GPDIObj::AXIS_SINGLE,  gpidx_trigger_r });
 		if (!usePOVtoButtons)
@@ -838,16 +838,22 @@ struct GPDirectInputDevice
 		{
 			switch (o.Map)
 			{
-				case GPDIObj::AXIS_PAIR:
+				case GPDIObj::AXIS_STICK:
 					val = (DWORD)(o.RangeCenter
-						+ (LONG)(GP.Vals[o.ValIdx] * o.FactorToNeg)
-						+ (LONG)(GP.Vals[o.ValIdx+1] * o.FactorToPos));
+						+ (LONG)(GP.Axis(o.ValIdx) * o.FactorToNeg)
+						+ (LONG)(GP.Axis(o.ValIdx+1) * o.FactorToPos));
 					goto write_val;
 
 				case GPDIObj::AXIS_MERGELSTICKANDDPAD:
 					val = (DWORD)(o.RangeCenter
-						+ (LONG)(GP.MergeLStickAndDPad(o.ValIdx) * o.FactorToNeg)
-						+ (LONG)(GP.MergeLStickAndDPad(o.ValIdx+1) * o.FactorToPos));
+						+ (LONG)(GP.Axis(o.ValIdx, true) * o.FactorToNeg)
+						+ (LONG)(GP.Axis(o.ValIdx+1, true) * o.FactorToPos));
+					goto write_val;
+
+				case GPDIObj::AXIS_PAIR:
+					val = (DWORD)(o.RangeCenter
+						+ (LONG)(GP.Vals[o.ValIdx] * o.FactorToNeg)
+						+ (LONG)(GP.Vals[o.ValIdx+1] * o.FactorToPos));
 					goto write_val;
 
 				case GPDIObj::AXIS_SINGLE:
@@ -893,6 +899,28 @@ struct GPDirectInputDevice
 		{
 			switch (o.Map)
 			{
+				case GPDIObj::AXIS_STICK:
+				{
+					unsigned short v0 = GP.Axis(o.ValIdx), v1 = GP.Axis(o.ValIdx+1);
+					if (PrevVals[o.ValIdx] == v0 && PrevVals[o.ValIdx+1] == v1) continue;
+					haveNum++;
+					if (!wantNum) continue;
+					rgdod->dwData = o.RangeCenter
+						+ (DWORD)((PrevVals[o.ValIdx  ] = v0) * o.FactorToNeg)
+						+ (DWORD)((PrevVals[o.ValIdx+1] = v1) * o.FactorToPos);
+					goto write_want;
+				}
+				case GPDIObj::AXIS_MERGELSTICKANDDPAD:
+				{
+					unsigned short v0 = GP.Axis(o.ValIdx, true), v1 = GP.Axis(o.ValIdx+1, true);
+					if (PrevVals[o.ValIdx] == v0 && PrevVals[o.ValIdx+1] == v1) continue;
+					haveNum++;
+					if (!wantNum) continue;
+					rgdod->dwData = o.RangeCenter
+						+ (DWORD)((PrevVals[o.ValIdx  ] = v0) * o.FactorToNeg)
+						+ (DWORD)((PrevVals[o.ValIdx+1] = v1) * o.FactorToPos);
+					goto write_want;
+				}
 				case GPDIObj::AXIS_PAIR:
 					if (PrevVals[o.ValIdx] == GP.Vals[o.ValIdx] && PrevVals[o.ValIdx+1] == GP.Vals[o.ValIdx+1]) continue;
 					haveNum++;
@@ -902,17 +930,6 @@ struct GPDirectInputDevice
 						+ (DWORD)((PrevVals[o.ValIdx+1] = GP.Vals[o.ValIdx+1]) * o.FactorToPos);
 					goto write_want;
 
-				case GPDIObj::AXIS_MERGELSTICKANDDPAD:
-				{
-					unsigned short v0 = GP.MergeLStickAndDPad(o.ValIdx), v1 = GP.MergeLStickAndDPad(o.ValIdx+1);
-					if (PrevVals[o.ValIdx] == v0 && PrevVals[o.ValIdx+1] == v1) continue;
-					haveNum++;
-					if (!wantNum) continue;
-					rgdod->dwData = o.RangeCenter
-						+ (DWORD)((PrevVals[o.ValIdx  ] = v0) * o.FactorToNeg)
-						+ (DWORD)((PrevVals[o.ValIdx+1] = v1) * o.FactorToPos);
-					goto write_want;
-				}
 				case GPDIObj::AXIS_SINGLE:
 					if (PrevVals[o.ValIdx] == GP.Vals[o.ValIdx]) continue;
 					haveNum++;

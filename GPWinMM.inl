@@ -1,5 +1,5 @@
 /* Gamepad Phoenix
-* Copyright (c) 2021-2022 Bernhard Schelling
+* Copyright (c) 2021-2023 Bernhard Schelling
 *
 * Gamepad Phoenix is free software: you can redistribute it and/or modify it under the terms
 * of the GNU General Public License as published by the Free Software Found-
@@ -245,28 +245,21 @@ static UINT WINAPI GPjoyGetPos(UINT uJoyID, GPJoyInfo* pji)
 	GPGamepad& gp = pGPData->Gamepads[uJoyID];
 	if (!gp.Used) return GPMM_JOYERR_UNPLUGGED;
 
-	bool isXInputPad = (GameUsesXInput && !ForceVirtualDevices && !(pGPData->Options & OPTION_Disable_XInput));
-	bool usePOVtoButtons = (!isXInputPad && (pGPData->Options & OPTION_DI_POVtoButtons));
-	bool useTriggersToButtons = (!isXInputPad && (pGPData->Options & OPTION_DI_TriggersToButtons));
-	const unsigned short* vals = gp.Vals;
 	RunInputUpdaters(gp);
+	const unsigned short* vals = gp.Vals, gpOptions = pGPData->Options;
+	bool isXInputPad = (GameUsesXInput && !ForceVirtualDevices && !(gpOptions & OPTION_Disable_XInput));
+	bool usePOVtoButtons = (!isXInputPad && (gpOptions & OPTION_DI_POVtoButtons));
+	bool useTriggersToButtons = (!isXInputPad && (gpOptions & OPTION_DI_TriggersToButtons));
+	bool mergeDPad = !!(gpOptions & OPTION_DPadToLStick);
 
-	if (pGPData->Options & OPTION_DPadToLStick)
-	{
-		pji->wXpos = 0x7FFF + (UINT)(gp.MergeLStickAndDPad(GPIDX_LSTICK_R) * 0x8000 / 0xFFFF) - (UINT)(gp.MergeLStickAndDPad(GPIDX_LSTICK_L) * 0x7FFF / 0xFFFF);
-		pji->wYpos = 0x7FFF + (UINT)(gp.MergeLStickAndDPad(GPIDX_LSTICK_D) * 0x8000 / 0xFFFF) - (UINT)(gp.MergeLStickAndDPad(GPIDX_LSTICK_U) * 0x7FFF / 0xFFFF);
-	}
-	else
-	{
-		pji->wXpos = 0x7FFF + (UINT)(vals[GPIDX_LSTICK_R] * 0x8000 / 0xFFFF) - (UINT)(vals[GPIDX_LSTICK_L] * 0x7FFF / 0xFFFF);
-		pji->wYpos = 0x7FFF + (UINT)(vals[GPIDX_LSTICK_D] * 0x8000 / 0xFFFF) - (UINT)(vals[GPIDX_LSTICK_U] * 0x7FFF / 0xFFFF);
-	}
-	int gpidx_btn_a     = ((pGPData->Options & OPTION_SwapAandB) ? GPIDX_BTN_B : GPIDX_BTN_A);
-	int gpidx_btn_b     = ((pGPData->Options & OPTION_SwapAandB) ? GPIDX_BTN_A : GPIDX_BTN_B);
-	int gpidx_trigger_l = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_L : GPIDX_TRIGGER_L);
-	int gpidx_trigger_r = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_R : GPIDX_TRIGGER_R);
-	int gpidx_btn_l     = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_L : GPIDX_BTN_L);
-	int gpidx_btn_r     = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_R : GPIDX_BTN_R);
+	pji->wXpos = 0x7FFF + (UINT)(gp.Axis(GPIDX_LSTICK_R, mergeDPad) * 0x8000 / 0xFFFF) - (UINT)(gp.Axis(GPIDX_LSTICK_L, mergeDPad) * 0x7FFF / 0xFFFF);
+	pji->wYpos = 0x7FFF + (UINT)(gp.Axis(GPIDX_LSTICK_D, mergeDPad) * 0x8000 / 0xFFFF) - (UINT)(gp.Axis(GPIDX_LSTICK_U, mergeDPad) * 0x7FFF / 0xFFFF);
+	int gpidx_btn_a     = ((gpOptions & OPTION_SwapAandB) ? GPIDX_BTN_B : GPIDX_BTN_A);
+	int gpidx_btn_b     = ((gpOptions & OPTION_SwapAandB) ? GPIDX_BTN_A : GPIDX_BTN_B);
+	int gpidx_trigger_l = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_L : GPIDX_TRIGGER_L);
+	int gpidx_trigger_r = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_R : GPIDX_TRIGGER_R);
+	int gpidx_btn_l     = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_L : GPIDX_BTN_L);
+	int gpidx_btn_r     = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_R : GPIDX_BTN_R);
 	pji->wButtons = 0
 			| ((vals[gpidx_btn_a      ] & 0x8000u) >> 15)
 			| ((vals[gpidx_btn_b      ] & 0x8000u) >> 14)
@@ -304,10 +297,11 @@ static UINT WINAPI GPjoyGetPosEx(UINT uJoyID, GPJoyInfoEx* pji)
 	UINT res = GPjoyGetPos(uJoyID, &ji);
 	if (res) return res;
 
-	bool isXInputPad = (GameUsesXInput && !ForceVirtualDevices && !(pGPData->Options & OPTION_Disable_XInput));
-	bool usePOVtoButtons = (!isXInputPad && (pGPData->Options & OPTION_DI_POVtoButtons));
-	bool useTriggersToButtons = (!isXInputPad && (pGPData->Options & OPTION_DI_TriggersToButtons));
-	const unsigned short* vals = pGPData->Gamepads[uJoyID].Vals;
+	const GPGamepad& gp = pGPData->Gamepads[uJoyID];
+	const unsigned short* vals = gp.Vals, gpOptions = pGPData->Options;
+	bool isXInputPad = (GameUsesXInput && !ForceVirtualDevices && !(gpOptions & OPTION_Disable_XInput));
+	bool usePOVtoButtons = (!isXInputPad && (gpOptions & OPTION_DI_POVtoButtons));
+	bool useTriggersToButtons = (!isXInputPad && (gpOptions & OPTION_DI_TriggersToButtons));
 
 	pji->dwButtons = pji->dwButtonNumber = 0;
 	if (pji->dwFlags & GPMM_JOY_RETURNBUTTONS)
@@ -320,10 +314,10 @@ static UINT WINAPI GPjoyGetPosEx(UINT uJoyID, GPJoyInfoEx* pji)
 	pji->dwXpos = ji.wXpos;
 	pji->dwYpos = ji.wYpos;
 	pji->dwZpos = ji.wZpos;
-	pji->dwRpos = 0x7FFF - (UINT)(vals[GPIDX_RSTICK_L] * 0x7FFF / 0xFFFF) + (UINT)(vals[GPIDX_RSTICK_R] * 0x8000 / 0xFFFF);
-	pji->dwUpos = 0x7FFF - (UINT)(vals[GPIDX_RSTICK_U] * 0x7FFF / 0xFFFF) + (UINT)(vals[GPIDX_RSTICK_D] * 0x8000 / 0xFFFF);
+	pji->dwRpos = 0x7FFF - (UINT)(gp.Axis(GPIDX_RSTICK_L) * 0x7FFF / 0xFFFF) + (UINT)(gp.Axis(GPIDX_RSTICK_R) * 0x8000 / 0xFFFF);
+	pji->dwUpos = 0x7FFF - (UINT)(gp.Axis(GPIDX_RSTICK_U) * 0x7FFF / 0xFFFF) + (UINT)(gp.Axis(GPIDX_RSTICK_D) * 0x8000 / 0xFFFF);
 	if (!isXInputPad && !useTriggersToButtons)
-		pji->dwVpos = 0x7FFF + (UINT)(vals[(pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_R : GPIDX_TRIGGER_R] * 0x8000 / 0xFFFF);
+		pji->dwVpos = 0x7FFF + (UINT)(vals[(gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_R : GPIDX_TRIGGER_R] * 0x8000 / 0xFFFF);
 	if (!usePOVtoButtons)
 	{
 		unsigned int mask =

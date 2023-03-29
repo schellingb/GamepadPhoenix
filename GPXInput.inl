@@ -172,26 +172,19 @@ DWORD WINAPI GPXInputGetState(DWORD dwUserIndex, GPXINPUT_STATE* pState)
 	if (!gp.Used || !CheckStarted(dwUserIndex)) return ERROR_DEVICE_NOT_CONNECTED;
 
 	RunInputUpdaters(gp);
-	const unsigned short* vals = gp.Vals;
-	int gpidx_btn_a     = ((pGPData->Options & OPTION_SwapAandB) ? GPIDX_BTN_B : GPIDX_BTN_A);
-	int gpidx_btn_b     = ((pGPData->Options & OPTION_SwapAandB) ? GPIDX_BTN_A : GPIDX_BTN_B);
-	int gpidx_trigger_l = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_L : GPIDX_TRIGGER_L);
-	int gpidx_trigger_r = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_R : GPIDX_TRIGGER_R);
-	int gpidx_btn_l     = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_L : GPIDX_BTN_L);
-	int gpidx_btn_r     = ((pGPData->Options & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_R : GPIDX_BTN_R);
+	const unsigned short* vals = gp.Vals, gpOptions = pGPData->Options;
+	int gpidx_btn_a     = ((gpOptions & OPTION_SwapAandB) ? GPIDX_BTN_B : GPIDX_BTN_A);
+	int gpidx_btn_b     = ((gpOptions & OPTION_SwapAandB) ? GPIDX_BTN_A : GPIDX_BTN_B);
+	int gpidx_trigger_l = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_L : GPIDX_TRIGGER_L);
+	int gpidx_trigger_r = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_BTN_R : GPIDX_TRIGGER_R);
+	int gpidx_btn_l     = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_L : GPIDX_BTN_L);
+	int gpidx_btn_r     = ((gpOptions & OPTION_SwapL1R1andL2R2) ? GPIDX_TRIGGER_R : GPIDX_BTN_R);
+	bool mergeDPad = !!(gpOptions & OPTION_DPadToLStick);
 
-	if (pGPData->Options & OPTION_DPadToLStick)
-	{
-		pState->Gamepad.sThumbLY = (short)(gp.MergeLStickAndDPad(GPIDX_LSTICK_U) * 0x7FFF / 0xFFFF) - (short)(gp.MergeLStickAndDPad(GPIDX_LSTICK_D) * 0x8000 / 0xFFFF);
-		pState->Gamepad.sThumbLX = (short)(gp.MergeLStickAndDPad(GPIDX_LSTICK_R) * 0x7FFF / 0xFFFF) - (short)(gp.MergeLStickAndDPad(GPIDX_LSTICK_L) * 0x8000 / 0xFFFF);
-	}
-	else
-	{
-		pState->Gamepad.sThumbLY = (short)(vals[GPIDX_LSTICK_U] * 0x7FFF / 0xFFFF) - (short)(vals[GPIDX_LSTICK_D] * 0x8000 / 0xFFFF);
-		pState->Gamepad.sThumbLX = (short)(vals[GPIDX_LSTICK_R] * 0x7FFF / 0xFFFF) - (short)(vals[GPIDX_LSTICK_L] * 0x8000 / 0xFFFF);
-	}
-	pState->Gamepad.sThumbRY = (short)(vals[GPIDX_RSTICK_U] * 0x7FFF / 0xFFFF) - (short)(vals[GPIDX_RSTICK_D] * 0x8000 / 0xFFFF);
-	pState->Gamepad.sThumbRX = (short)(vals[GPIDX_RSTICK_R] * 0x7FFF / 0xFFFF) - (short)(vals[GPIDX_RSTICK_L] * 0x8000 / 0xFFFF);
+	pState->Gamepad.sThumbLY = (short)(gp.Axis(GPIDX_LSTICK_U, mergeDPad) * 0x7FFF / 0xFFFF) - (short)(gp.Axis(GPIDX_LSTICK_D, mergeDPad) * 0x8000 / 0xFFFF);
+	pState->Gamepad.sThumbLX = (short)(gp.Axis(GPIDX_LSTICK_R, mergeDPad) * 0x7FFF / 0xFFFF) - (short)(gp.Axis(GPIDX_LSTICK_L, mergeDPad) * 0x8000 / 0xFFFF);
+	pState->Gamepad.sThumbRY = (short)(gp.Axis(GPIDX_RSTICK_U           ) * 0x7FFF / 0xFFFF) - (short)(gp.Axis(GPIDX_RSTICK_D           ) * 0x8000 / 0xFFFF);
+	pState->Gamepad.sThumbRX = (short)(gp.Axis(GPIDX_RSTICK_R           ) * 0x7FFF / 0xFFFF) - (short)(gp.Axis(GPIDX_RSTICK_L           ) * 0x8000 / 0xFFFF);
 	pState->Gamepad.bLeftTrigger  = (BYTE)(vals[gpidx_trigger_l] * 0xFF / 0xFFFF);
 	pState->Gamepad.bRightTrigger = (BYTE)(vals[gpidx_trigger_r] * 0xFF / 0xFFFF);
 	pState->Gamepad.wButtons = 0

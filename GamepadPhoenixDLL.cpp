@@ -17,6 +17,7 @@
 #include "minhook.inl"
 #include <windows.h>
 #include <stdarg.h>
+#include <math.h>
 #include <type_traits>
 
 #ifdef NDEBUG
@@ -62,7 +63,13 @@ enum GPIndices : unsigned char
 	GPIDX_DPAD_U, GPIDX_DPAD_D, GPIDX_DPAD_L, GPIDX_DPAD_R,
 	GPIDX_BTN_A, GPIDX_BTN_B, GPIDX_BTN_X, GPIDX_BTN_Y, GPIDX_BTN_L, GPIDX_BTN_R,
 	GPIDX_BTN_BACK, GPIDX_BTN_START, GPIDX_BTN_LSTICK, GPIDX_BTN_RSTICK,
-	_GPIDX_MAX,
+	_GPIDX_MAX, _GPIDX_MAXCAL = GPIDX_RSTICK_R + 1,
+};
+
+enum GPCal : unsigned char
+{
+	GPCAL_LDEADZONE, GPCAL_LLIMIT, GPCAL_LANTI, GPCAL_LSENS, GPCAL_LSHIFTH, GPCAL_LSHIFTV,
+	GPCAL_RDEADZONE, GPCAL_RLIMIT, GPCAL_RANTI, GPCAL_RSENS, GPCAL_RSHIFTH, GPCAL_RSHIFTV, _GPCAL_MAX
 };
 
 struct GPGamepad
@@ -70,12 +77,46 @@ struct GPGamepad
 	bool Used;
 	unsigned int IDs[_GPIDX_MAX];
 	unsigned short Vals[_GPIDX_MAX];
-	GPINLINE unsigned short MergeLStickAndDPad(int idx) const { int sum = (Vals[idx] + Vals[idx+GPIDX_DPAD_U]); return (sum > 0xFFFF ? (unsigned short)0xFFFF : (unsigned short)sum); }
+	signed char Cals[_GPCAL_MAX];
+	int CalFix[_GPIDX_MAXCAL], CalAnti[_GPIDX_MAXCAL], CalInRange[_GPIDX_MAXCAL], CalOutRange[_GPIDX_MAXCAL];
+	float CalSens[_GPIDX_MAXCAL];
+	void CalcCals()
+	{
+		for (int idx = 0; idx != _GPIDX_MAXCAL; idx++)
+		{
+			int ofs = (idx < GPIDX_RSTICK_U ? 0 : (GPCAL_RDEADZONE-GPCAL_LDEADZONE));
+			int dz = Cals[GPCAL_LDEADZONE+ofs]*0xFFFF/100, limit = Cals[GPCAL_LLIMIT+ofs]*0xFFFF/100, csens = Cals[GPCAL_LSENS+ofs];
+			int shift = Cals[GPCAL_LSHIFTV+ofs]*((idx&2) ? 0 : (idx&1) ? 1 : -1) + Cals[GPCAL_LSHIFTH+ofs]*((idx&2) ? (idx&1) ? 1 : -1 : 0);
+			CalFix[idx] = (shift*0xFFFF/100) - dz;
+			CalAnti[idx] = Cals[GPCAL_LANTI+ofs]*0xFFFF/100;
+			CalSens[idx] = (csens > 0 ? (1.0f + (csens * 0.04f)) : (csens < 0 ? (1.0f + (csens * 0.006f)) : 0.0f));
+			CalInRange[idx] = (0xFFFF - dz - limit);
+			CalOutRange[idx] = (0xFFFF - CalAnti[idx]);
+			if (CalInRange[idx] <= 0) CalInRange[idx] = 1;
+			if (CalOutRange[idx] <= 0) CalOutRange[idx] = 1;
+		}
+	}
+	unsigned short Axis(int idx, bool mergeDPad = false) const
+	{
+		int fix = CalFix[idx], v = Vals[idx] + fix;
+		if (fix > 0) v -= Vals[idx + ((idx&1)!=0 ? -1 : 1)];
+		unsigned int w;
+		if (v <= 0) w = 0;
+		else if (v >= CalInRange[idx]) w = 0xFFFF;
+		else
+		{
+			w = (unsigned int)v * CalOutRange[idx] / CalInRange[idx];
+			if (CalSens[idx]) w = (int)(powf((float)w / CalOutRange[idx], CalSens[idx]) * CalOutRange[idx]);
+			w += CalAnti[idx];
+		}
+		if (!mergeDPad) return (unsigned short)w;
+		else { w += Vals[(idx%4)+GPIDX_DPAD_U]; return (w > 0xFFFF ? (unsigned short)0xFFFF : (unsigned short)w); }
+	}
 };
 
 struct GPData
 {
-	#define HOOK_SHARED_DATA_NAME "GamepadPhoenix_Data"
+	#define HOOK_SHARED_DATA_NAME "GamepadPhoenix"
 	enum { NUM_GAMEPADS = 4, MAX_EXCLUDES = 256, SIZE_LOGBUF = 60*1024 };
 	GPGamepad Gamepads[NUM_GAMEPADS];
 	unsigned int InjectExcludes[MAX_EXCLUDES];
@@ -769,29 +810,42 @@ void WINAPI RunInject(HWND hwnd, HINSTANCE hinst, LPSTR lpszCmdLine, int nCmdSho
 	CloseHandle(process);
 }
 
-bool WINAPI UIPad(int idx, unsigned int* ids, unsigned short* vals, unsigned int captureSources)
+void WINAPI UISetPad(int idx, unsigned int* ids, signed char* cals)
 {
 	#pragma GPLINKER_DLL_EXPORT
 	GPGamepad& gp = pGPData->Gamepads[idx];
-	if (vals)
+	if (memcmp(gp.IDs, ids, sizeof(gp.IDs)))
 	{
-		if (gp.Used)
-		{
-			if (InputUpdaters.empty()) InputSetup();
-			CaptureSources = captureSources;
-			RunInputUpdaters(gp);
-		}
-		bool changed = (ids && memcmp(ids, gp.IDs, sizeof(gp.IDs)));
-		if (ids) memcpy(ids, gp.IDs, sizeof(gp.IDs));
-		memcpy(vals, gp.Vals, sizeof(gp.Vals));
-		return changed;
+		memcpy(gp.IDs, ids, sizeof(gp.IDs));
+		memset(gp.Vals, 0, sizeof(gp.Vals));
 	}
-	GPASSERT(ids && !captureSources);
-	memcpy(gp.IDs, ids, sizeof(gp.IDs));
-	memset(gp.Vals, 0, sizeof(gp.Vals));
+	memcpy(gp.Cals, cals, sizeof(gp.Cals));
+	gp.CalcCals();
 	gp.Used = false;
 	for (unsigned int id : gp.IDs) { if (id) { gp.Used = true; break; } }
-	return false;
+}
+
+BOOL WINAPI UIGetPad(int idx, unsigned int* ids, signed char* cals)
+{
+	#pragma GPLINKER_DLL_EXPORT
+	GPGamepad& gp = pGPData->Gamepads[idx];
+	bool changed = !!memcmp(ids, gp.IDs, sizeof(gp.IDs));
+	memcpy(ids, gp.IDs, sizeof(gp.IDs));
+	memcpy(cals, gp.Cals, sizeof(gp.Cals));
+	return changed;
+}
+
+void WINAPI UIPad(int idx, unsigned short* vals, unsigned int captureSources)
+{
+	#pragma GPLINKER_DLL_EXPORT
+	GPGamepad& gp = pGPData->Gamepads[idx];
+	if (gp.Used)
+	{
+		if (InputUpdaters.empty()) InputSetup();
+		CaptureSources = captureSources;
+		RunInputUpdaters(gp);
+	}
+	memcpy(vals, gp.Vals, sizeof(gp.Vals));
 }
 
 BOOL WINAPI UILockLog(BOOL wantLock, void** out_log, int* out_length)

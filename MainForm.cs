@@ -1,5 +1,5 @@
 /* Gamepad Phoenix
-* Copyright (c) 2021-2022 Bernhard Schelling
+* Copyright (c) 2021-2023 Bernhard Schelling
 *
 * Gamepad Phoenix is free software: you can redistribute it and/or modify it under the terms
 * of the GNU General Public License as published by the Free Software Found-
@@ -122,6 +122,7 @@ namespace GamepadPhoenix
         internal Button btnLaunchLogClear;
         internal Button btnAssignUndo;
         internal Button btnAssignRedo;
+        internal Button btnDeadzones;
         internal FireLogo fire;
         private GroupBox groupBox2;
         private GroupBox groupBox3;
@@ -264,6 +265,7 @@ namespace GamepadPhoenix
             this.btnAssignCancel = new System.Windows.Forms.Button();
             this.btnAssignRedo = new System.Windows.Forms.Button();
             this.btnAssignSwitch = new System.Windows.Forms.Button();
+            this.btnDeadzones = new System.Windows.Forms.Button();
             this.lblBigFont = new System.Windows.Forms.Label();
             this.pad = new GamepadPhoenix.PadControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
@@ -745,6 +747,7 @@ namespace GamepadPhoenix
             this.groupBox1.Controls.Add(this.btnAssignCancel);
             this.groupBox1.Controls.Add(this.btnAssignRedo);
             this.groupBox1.Controls.Add(this.btnAssignSwitch);
+            this.groupBox1.Controls.Add(this.btnDeadzones);
             this.groupBox1.Controls.Add(this.lblBigFont);
             this.groupBox1.Controls.Add(this.pad);
             this.groupBox1.Location = new System.Drawing.Point(5, 29);
@@ -1276,12 +1279,21 @@ namespace GamepadPhoenix
             // 
             // btnAssignSwitch
             // 
-            this.btnAssignSwitch.Location = new System.Drawing.Point(386, 374);
+            this.btnAssignSwitch.Location = new System.Drawing.Point(477, 374);
             this.btnAssignSwitch.Name = "btnAssignSwitch";
-            this.btnAssignSwitch.Size = new System.Drawing.Size(180, 23);
+            this.btnAssignSwitch.Size = new System.Drawing.Size(89, 23);
             this.btnAssignSwitch.TabIndex = 28;
-            this.btnAssignSwitch.Text = "Switch To Similar Device";
+            this.btnAssignSwitch.Text = "Switch Device";
             this.btnAssignSwitch.UseVisualStyleBackColor = true;
+            // 
+            // btnDeadzones
+            // 
+            this.btnDeadzones.Location = new System.Drawing.Point(382, 374);
+            this.btnDeadzones.Name = "btnDeadzones";
+            this.btnDeadzones.Size = new System.Drawing.Size(89, 23);
+            this.btnDeadzones.TabIndex = 29;
+            this.btnDeadzones.Text = "Set Deadzones";
+            this.btnDeadzones.UseVisualStyleBackColor = true;
             // 
             // lblBigFont
             // 
@@ -1291,7 +1303,7 @@ namespace GamepadPhoenix
             this.lblBigFont.Location = new System.Drawing.Point(381, 161);
             this.lblBigFont.Name = "lblBigFont";
             this.lblBigFont.Size = new System.Drawing.Size(194, 42);
-            this.lblBigFont.TabIndex = 30;
+            this.lblBigFont.TabIndex = 31;
             this.lblBigFont.Text = "lblBigFont";
             this.lblBigFont.Visible = false;
             // 
@@ -1301,7 +1313,7 @@ namespace GamepadPhoenix
             this.pad.Location = new System.Drawing.Point(218, 14);
             this.pad.Name = "pad";
             this.pad.Size = new System.Drawing.Size(512, 390);
-            this.pad.TabIndex = 29;
+            this.pad.TabIndex = 30;
             this.pad.TabStop = false;
             // 
             // tabPage1

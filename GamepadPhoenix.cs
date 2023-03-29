@@ -1,5 +1,5 @@
 /* Gamepad Phoenix
-* Copyright (c) 2021-2022 Bernhard Schelling
+* Copyright (c) 2021-2023 Bernhard Schelling
 *
 * Gamepad Phoenix is free software: you can redistribute it and/or modify it under the terms
 * of the GNU General Public License as published by the Free Software Found-
@@ -81,21 +81,27 @@ namespace GamepadPhoenix
         TRIGGER_L, TRIGGER_R, DPAD_U, DPAD_D, DPAD_L, DPAD_R, BTN_A, BTN_B, BTN_X, BTN_Y, BTN_L, BTN_R,
         BTN_BACK, BTN_START, BTN_LSTICK, BTN_RSTICK, _MAX,
     };
+    internal enum GPCals : byte
+    {
+        LDEADZONE, LLIMIT, LANTI, LSENS, LSHIFTH, LSHIFTV,
+        RDEADZONE, RLIMIT, RANTI, RSENS, RSHIFTH, RSHIFTV, _MAX
+    };
 
     internal class GPGamepad
     {
-        internal const int NUM_GAMEPADS = 4, NUM_INDICES = (int)GPIndices._MAX;
+        internal const int NUM_GAMEPADS = 4, NUM_INDICES = (int)GPIndices._MAX, NUM_CALS = (int)GPCals._MAX;
         internal const uint GPID_CAPTURE_NEXT_KEY = (uint)GPIDInterface.CAPTURE_NEXT_KEY << GPID_SHIFT_INTF;
         internal const uint GPID_KEYBOARD_DEVICE = (uint)GPIDInterface.KEYBOARD << GPID_SHIFT_INTF;
 
         internal uint[] IDs = new uint[NUM_INDICES];
         internal ushort[] Vals = new ushort[NUM_INDICES];
+        internal sbyte[] Cals = new sbyte[NUM_CALS];
         internal List<uint> UndoBuffer = new List<uint>();
         internal int UndoIndex = 0;
 
         int Index;
-        GCHandle hIDs, hVals;
-        IntPtr ptrIDs, ptrVals;
+        GCHandle hIDs, hVals, hCals;
+        IntPtr ptrIDs, ptrVals, ptrCals;
         internal bool Used, DrawnPressed;
         internal GPIndices Pressed;
         internal bool IsPressed(GPIndices idx) { return ((Vals[(int)idx] & 0x8000) != 0); }
@@ -105,7 +111,8 @@ namespace GamepadPhoenix
             Index = idx;
             hIDs  = GCHandle.Alloc(IDs,  GCHandleType.Pinned); ptrIDs  = Marshal.UnsafeAddrOfPinnedArrayElement(IDs,  0);
             hVals = GCHandle.Alloc(Vals, GCHandleType.Pinned); ptrVals = Marshal.UnsafeAddrOfPinnedArrayElement(Vals, 0);
-            Read(true);
+            hCals = GCHandle.Alloc(Cals, GCHandleType.Pinned); ptrCals = Marshal.UnsafeAddrOfPinnedArrayElement(Cals, 0);
+            Used = Funcs.UIGetPad(Index, ptrIDs, ptrCals);
         }
 
         const int GPID_SHIFT_INTF = 29, GPID_SHIFT_DEVNUM = 8, GPID_BITS_DEV = (GPID_SHIFT_INTF - GPID_SHIFT_DEVNUM);
@@ -126,9 +133,9 @@ namespace GamepadPhoenix
             return (sameIntfDev != 0 && sameIntfDev != uint.MaxValue && sameIntfDev != GPID_KEYBOARD_DEVICE ? GPIDGetInterface(sameIntfDev) : GPIDInterface.NONE);
         }
 
-        void Refresh(bool writeIds = false, bool dontUpdateUndo = false)
+        void Refresh(bool setPad = false, bool dontUpdateUndo = false)
         {
-            if (writeIds) Funcs.UIPad(Index, ptrIDs, IntPtr.Zero);
+            if (setPad) Funcs.UISetPad(Index, ptrIDs, ptrCals);
 
             Used = false;
             foreach (uint id in IDs) { if (id != 0) { Used = true; break; } }
@@ -148,49 +155,58 @@ namespace GamepadPhoenix
         internal void MapFullXInputPad(uint dev_num)
         {
             for (int i = 0; i != NUM_INDICES; i++) IDs[i] = GPIDMake(GPIDInterface.XINPUT, dev_num, XINPUT_OBJS[i]);
-            Refresh(writeIds: true);
+            Refresh(setPad: true);
         }
 
-        internal void Load(uint[] src, bool clearUndoBuffer = false)
+        internal void Load(uint[] ids, sbyte[] cals = null, bool clearUndoBuffer = false)
         {
-            for (int i = 0; i != NUM_INDICES; i++) IDs[i] = src[i];
+            for (int i = 0; i != NUM_INDICES; i++) IDs[i] = ids[i];
+            for (int i = 0; i != NUM_CALS; i++) Cals[i] = (cals == null ? (sbyte)0 : cals[i]);
             if (clearUndoBuffer) { UndoBuffer.Clear(); UndoIndex = 0; }
-            Refresh(writeIds: true);
+            Refresh(setPad: true);
         }
 
-        internal void LoadAs(uint[] src, uint switchDevNum, bool removeLastUndo)
+        internal void LoadAs(uint[] ids, sbyte[] cals, uint switchDevNum, bool removeLastUndo)
         {
             if (removeLastUndo) UndoIndex -= NUM_INDICES;
-            for (int i = 0; i != NUM_INDICES; i++) IDs[i] = GPIDMake(GPIDGetInterface(src[i]), switchDevNum, GPIDGetObjNum(src[i]));
-            Refresh(writeIds: true);
+            for (int i = 0; i != NUM_INDICES; i++) IDs[i] = GPIDMake(GPIDGetInterface(ids[i]), switchDevNum, GPIDGetObjNum(ids[i]));
+            for (int i = 0; i != NUM_CALS; i++) Cals[i] = (cals == null ? (sbyte)0 : cals[i]);
+            Refresh(setPad: true);
         }
 
         internal static void Swap(GPGamepad[] pads, int a, int b)
         {
             { GPGamepad v = pads[a]; pads[a] = pads[b]; pads[b] = v; }
             { int v = pads[a].Index; pads[a].Index = pads[b].Index; pads[b].Index = v; }
-            pads[a].Refresh(writeIds: true);
-            pads[b].Refresh(writeIds: true);
+            pads[a].Refresh(setPad: true);
+            pads[b].Refresh(setPad: true);
         }
 
         internal void WriteID(GPIndices idx, uint id)
         {
             if (IDs[(int)idx] == id) return;
             IDs[(int)idx] = id;
-            Refresh(writeIds: true, dontUpdateUndo:(id == GPID_CAPTURE_NEXT_KEY)); // != 0 is capture or assign cancel
+            Refresh(setPad: true, dontUpdateUndo:(id == GPID_CAPTURE_NEXT_KEY)); // != 0 is capture or assign cancel
+        }
+
+        internal void WriteCal(GPCals cal, sbyte val)
+        {
+            if (Cals[(int)cal] == val) return;
+            Cals[(int)cal] = val;
+            Refresh(setPad: true, dontUpdateUndo:true);
         }
 
         internal void NavigateUndo(int p)
         {
             UndoIndex += p * NUM_INDICES;
             UndoBuffer.CopyTo(UndoIndex - NUM_INDICES, IDs, 0, NUM_INDICES);
-            Refresh(writeIds: true, dontUpdateUndo: true);
+            Refresh(setPad: true, dontUpdateUndo: true);
         }
 
-        internal void Read(bool readIds, GPIDSource captureSources = GPIDSource.NONE)
+        internal void Read(GPIDSource captureSources = GPIDSource.NONE)
         {
-            bool idChanged = Funcs.UIPad(Index, (readIds ? ptrIDs : IntPtr.Zero), ptrVals, (uint)captureSources);
-            if (readIds && (idChanged || UndoBuffer.Count == 0)) Refresh();
+            Funcs.UIPad(Index, ptrVals, (uint)captureSources);
+            if (captureSources != GPIDSource.NONE) Funcs.UIGetPad(Index, ptrIDs, ptrCals);
             GPIndices down = GPIndices._MAX;
             for (int i = 0; i != NUM_INDICES; i++) { if ((Vals[i] & 0x8000) != 0) { down = (GPIndices)i; if (down != GPIndices.BTN_BACK) break; } }
             if (down != GPIndices._MAX && down != Pressed && GPIDGetInterface(IDs[(int)down]) != GPIDInterface.KEYBOARD) GUI.OnPadButton(this, down);
@@ -317,7 +333,9 @@ namespace GamepadPhoenix
 
     static internal class Funcs
     {
-        [UnmanagedFunctionPointer(CallingConvention.Winapi)] internal delegate bool D_UIPad(int idx, IntPtr ids, IntPtr vals, uint captureSources = 0);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)] internal delegate void D_UIPad(int idx, IntPtr vals, uint captureSources = 0);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)] internal delegate void D_UISetPad(int idx, IntPtr ids, IntPtr cals);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)] internal delegate bool D_UIGetPad(int idx, IntPtr ids, IntPtr cals);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] internal delegate bool D_UILockLog(bool wantLock, out IntPtr out_log, out int out_length);
         [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet=CharSet.Unicode)] internal delegate void D_UISetup(GPOption options, string excludeList, string preparedDllIni = null);
         [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet=CharSet.Unicode)] internal delegate void D_UILaunch(string commandLine, string startDir);
@@ -325,6 +343,8 @@ namespace GamepadPhoenix
         [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet=CharSet.Unicode)] internal delegate int D_UIWii(string hidPath, bool on, int LEDs = 0);
 
         internal static D_UIPad       UIPad;
+        internal static D_UISetPad    UISetPad;
+        internal static D_UIGetPad    UIGetPad;
         internal static D_UILockLog   UILockLog;
         internal static D_UISetup     UISetup;
         internal static D_UILaunch    UILaunch;
@@ -346,6 +366,8 @@ namespace GamepadPhoenix
             SizeDLL32 = (int)new FileInfo(DLL32).Length;
             SizeDLL64 = (int)new FileInfo(DLL64).Length;
             UIPad       = (D_UIPad      )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UIPad"      ), typeof(D_UIPad      ));
+            UISetPad    = (D_UISetPad   )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UISetPad"   ), typeof(D_UISetPad   ));
+            UIGetPad    = (D_UIGetPad   )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UIGetPad"   ), typeof(D_UIGetPad   ));
             UILockLog   = (D_UILockLog  )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UILockLog"  ), typeof(D_UILockLog  ));
             UISetup     = (D_UISetup    )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UISetup"    ), typeof(D_UISetup    ));
             UILaunch    = (D_UILaunch   )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UILaunch"   ), typeof(D_UILaunch   ));
@@ -371,13 +393,20 @@ namespace GamepadPhoenix
         public class Preset
         {
             public Preset() { }
-            internal Preset(string name, GPGamepad pad) { Name = name; System.Array.Copy(pad.IDs, IDs, pad.IDs.Length); }
+            internal Preset(string name, GPGamepad pad)
+            {
+                Name = name;
+                Array.Copy(pad.IDs, IDs, IDs.Length);
+                foreach (sbyte c in pad.Cals) { if (c != 0) { Cals = new sbyte[(int)GPCals._MAX]; Array.Copy(pad.Cals, Cals, Cals.Length); break; } }
+            }
             [System.Xml.Serialization.XmlAttribute] public string Name = "";
             [System.Xml.Serialization.XmlAttribute] public uint[] IDs = new uint[(int)GPIndices._MAX];
+            [System.Xml.Serialization.XmlAttribute] public sbyte[] Cals;
         }
         public class GamePad
         {
             [System.Xml.Serialization.XmlAttribute] public uint[] IDs;
+            [System.Xml.Serialization.XmlAttribute] public sbyte[] Cals;
         }
         public class Game
         {
@@ -426,7 +455,7 @@ namespace GamepadPhoenix
                 havePads |= (pads[i] = new GPGamepad(i)).Used;
             if (!havePads && cfg.Gamepads != null)
                 for (int i = 0; i < cfg.Gamepads.Count && i < GPGamepad.NUM_GAMEPADS; i++)
-                    pads[i].Load(cfg.Gamepads[i].IDs, true);
+                    pads[i].Load(cfg.Gamepads[i].IDs, cfg.Gamepads[i].Cals, true);
 
             presets = new Dictionary<string,Preset>();
             foreach (Config.Preset p in cfg.Presets)
@@ -449,6 +478,7 @@ namespace GamepadPhoenix
             {
                 GamePad gp = new GamePad();
                 gp.IDs = pads[i].IDs;
+                foreach (sbyte c in pads[i].Cals) { if (c != 0) { gp.Cals = pads[i].Cals; break; } }
                 cfg.Gamepads.Add(gp);
             }
             foreach (Preset p in presets.Values)
@@ -623,6 +653,7 @@ namespace GamepadPhoenix
         static PadPart PadPartHover, PadPartAssign;
         static List<PadPart> AssignQueue = new List<PadPart>();
         static Pen PenBlack = new Pen(Color.Black, 4), PenWhite = new Pen(Color.White, 2);
+        static Pen PenThin = new Pen(Color.Black, 1);
         static Dictionary<string, Config.Preset> Presets;
         static bool IsDeviceSwitch, IsAutoLoad, FVisible = true;
         static MainForm f;
@@ -822,7 +853,7 @@ namespace GamepadPhoenix
             }
             else if (ok && !doSave && (!Pads[PadIdx].Used || Pads[PadIdx].IsKnownPreset(Presets) || MessageBox.Show(f, "Are you sure you want to override the current settings with the preset '" + pf.txtName.Text + "'?", "Load Preset", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes))
             {
-                Pads[PadIdx].Load(Presets[pf.txtName.Text].IDs);
+                Pads[PadIdx].Load(Presets[pf.txtName.Text].IDs, Presets[pf.txtName.Text].Cals);
                 OnSelectTab();
             }
         }
@@ -898,6 +929,10 @@ namespace GamepadPhoenix
                 PadPartAssign.oldId = Pads[PadIdx].IDs[(int)PadPartAssign.idx];
                 Pads[PadIdx].WriteID(PadPartAssign.idx, GPGamepad.GPID_CAPTURE_NEXT_KEY);
                 IsDeviceSwitch = true;
+            };
+            f.btnDeadzones.Click += (object _s, System.EventArgs _e) =>
+            {
+                OnDeadzonesButton();
             };
 
             f.btnPresetSave.Click += (object _s, System.EventArgs _e) => OpenPresetList(true);
@@ -1246,7 +1281,7 @@ namespace GamepadPhoenix
                 gpIDs[(int)PadPartAssign.idx] = PadPartAssign.oldId;
                 if (IsDeviceSwitch && (GPGamepad.GPIDUniqueIntfDevNum(gpIDs) == GPGamepad.GPIDGetInterface(newid)))
                 {
-                    Pads[PadIdx].LoadAs(gpIDs, GPGamepad.GPIDGetDevNum(newid), true);
+                    Pads[PadIdx].LoadAs(gpIDs, Pads[PadIdx].Cals, GPGamepad.GPIDGetDevNum(newid), true);
                     accept = true;
                 }
                 else if (IsAutoLoad)
@@ -1257,7 +1292,7 @@ namespace GamepadPhoenix
                         uint presetBtnL = p.IDs[(int)GPIndices.BTN_L];
                         if (autoIntfObj != GPGamepad.GPIDMake(GPGamepad.GPIDGetInterface(presetBtnL), 0, GPGamepad.GPIDGetObjNum(presetBtnL))) continue;
                         if (GPGamepad.GPIDUniqueIntfDevNum(p.IDs) == GPIDInterface.NONE) continue;
-                        Pads[PadIdx].LoadAs(p.IDs, GPGamepad.GPIDGetDevNum(newid), true);
+                        Pads[PadIdx].LoadAs(p.IDs, p.Cals, GPGamepad.GPIDGetDevNum(newid), true);
                         accept = true;
                         if (presetsForm != null) presetsForm.Close();
                         break;
@@ -1307,7 +1342,7 @@ namespace GamepadPhoenix
                     UpdateCycle = ((UpdateCycle + 1) % GPGamepad.NUM_GAMEPADS);
                     GPGamepad pad = Pads[UpdateCycle];
                     if (!pad.Used) continue;
-                    if (!f.panelPad.Visible || UpdateCycle != PadIdx) pad.Read(false);
+                    if (!f.panelPad.Visible || UpdateCycle != PadIdx) pad.Read();
                     if ((pad.Pressed != GPIndices._MAX) != pad.DrawnPressed) RedrawTabLabel(UpdateCycle);
                 }
             }
@@ -1373,6 +1408,23 @@ namespace GamepadPhoenix
             }
         }
 
+        static ushort DeadzoneAxis(int idx, ushort[] gpVals, sbyte[] gpCals)
+        {
+            int ofs = (idx < (int)GPIndices.RSTICK_U ? 0 : ((int)GPCals.RDEADZONE - (int)GPCals.LDEADZONE));
+            int dz = gpCals[(int)GPCals.LDEADZONE + ofs] * 0xFFFF / 100, limit = gpCals[(int)GPCals.LLIMIT + ofs] * 0xFFFF / 100;
+            int shift = gpCals[(int)GPCals.LSHIFTV + ofs] * ((idx&2)!=0 ? 0 : (idx&1)!=0 ? 1 : -1) + gpCals[(int)GPCals.LSHIFTH + ofs] * ((idx&2)!=0 ? (idx&1)!=0 ? 1 : -1 : 0);
+            int fix = (shift * 0xFFFF / 100) - dz, anti = gpCals[(int)GPCals.LANTI + ofs] * 0xFFFF / 100, csens = gpCals[(int)GPCals.LSENS + ofs];
+            float sens = (csens > 0 ? (1.0f + (csens * 0.04f)) : (csens < 0 ? (1.0f + (csens * 0.006f)) : 0.0f));
+            uint inrange = (uint)Math.Max(1, (0xFFFF - dz - limit)), outrange = (uint)Math.Max(1, (0xFFFF - anti));
+            int v = gpVals[idx] + fix;
+            if (fix > 0) v -= gpVals[idx + ((idx&1)!=0 ? -1 : 1)];
+            if (v <= 0) return 0;
+            if (v >= inrange) return 0xFFFF;
+            uint w = (uint)v * outrange / inrange;
+            if (sens != 0) w = (uint)(Math.Pow((float)w / outrange, sens) * outrange);
+            return (ushort)(w + anti);
+        }
+
         static internal void RenderPad(Graphics g)
         {
             if (PadPartAssign != null)
@@ -1388,15 +1440,16 @@ namespace GamepadPhoenix
                 }
                 if (IsDeviceSwitch) captureSources = (GPIDSource)(1 << (int)GPGamepad.GPIDGetInterface(PadPartAssign.oldId));
                 if (IsAutoLoad) captureSources = GPIDSource.ALL;
-                Pads[PadIdx].Read(true, captureSources);
+                Pads[PadIdx].Read(captureSources);
             }
             else
             {
-                Pads[PadIdx].Read(false);
+                Pads[PadIdx].Read();
             }
 
             PadPartHover = null;
             ushort[] gpVals = Pads[PadIdx].Vals;
+            sbyte[] gpCals = Pads[PadIdx].Cals;
             g.Clear(SystemColors.Control);
             foreach (PadPart part in PadParts)
             {
@@ -1419,8 +1472,8 @@ namespace GamepadPhoenix
                                 r.X += ((gpVals[(int)part.idx+3] & 0x8000) >> 13) - ((gpVals[(int)part.idx+2] & 0x8000) >> 13);
                                 break;
                             case EPadPartType.STICK:
-                                r.Y += (int)(gpVals[(int)part.idx+1]*0.0002f - gpVals[(int)part.idx  ]*0.0002f);
-                                r.X += (int)(gpVals[(int)part.idx+3]*0.0002f - gpVals[(int)part.idx+2]*0.0002f);
+                                r.Y += (int)(DeadzoneAxis((int)part.idx+1, gpVals, gpCals)*0.0002f - DeadzoneAxis((int)part.idx  , gpVals, gpCals)*0.0002f);
+                                r.X += (int)(DeadzoneAxis((int)part.idx+3, gpVals, gpCals)*0.0002f - DeadzoneAxis((int)part.idx+2, gpVals, gpCals)*0.0002f);
                                 pressed = ((gpVals[(int)part.stickBtnIdx] & 0x8000) != 0);
                                 if (pressed) img = f.picLStick.Image;
                                 break;
@@ -1473,7 +1526,7 @@ namespace GamepadPhoenix
                 }
                 if (PadPartAssign != null)
                 {
-                    string str = (IsAutoLoad ? "Press L1 to load preset" : IsDeviceSwitch ? "Push new device" : "Press '" + PadPartAssign.name + "'");
+                    string str = (IsAutoLoad ? "Press L1 to load preset" : IsDeviceSwitch ? "Push new device\n  (of same type)" : "Press '" + PadPartAssign.name + "'");
                     var sz = g.MeasureString(str, f.lblBigFont.Font);
                     int txtX = (int)((g.VisibleClipBounds.Width - sz.Width) / 2);
                     int txtY = (int)((g.VisibleClipBounds.Height - sz.Height) / 2);
@@ -1494,7 +1547,82 @@ namespace GamepadPhoenix
             fireLogo.DrawText(f.lblMoreWii.Font, "Gamepad Phoenix - Copyright (c) 2021-2022 Bernhard Schelling", fireLogo.Height - 45, Brushes.LightYellow, 1);
             fireLogo.DrawText(f.lblMoreWii.Font, "Powered by MinHook - Copyright (c) 2009-2017 Tsuda Kageyu", fireLogo.Height - 25, Brushes.LightYellow, 1);
         }
-    }
+
+        internal static void OnDeadzonesButton()
+        {
+            DeadzoneForm df = new DeadzoneForm();
+            df.timer.Tick += (object s, EventArgs e) => { df.deadzoneControl.Invalidate(); };
+            TrackBar[]      trks = new [] { df.trkLeftDeadzone, df.trkLeftLimit, df.trkLeftAnti, df.trkLeftSens, df.trkLeftShiftH, df.trkLeftShiftV, df.trkRightDeadzone, df.trkRightLimit, df.trkRightAnti, df.trkRightSens, df.trkRightShiftH, df.trkRightShiftV };
+            NumericUpDown[] nums = new [] { df.numLeftDeadzone, df.numLeftLimit, df.numLeftAnti, df.numLeftSens, df.numLeftShiftH, df.numLeftShiftV, df.numRightDeadzone, df.numRightLimit, df.numRightAnti, df.numRightSens, df.numRightShiftH, df.numRightShiftV };
+            for (int i = 0; i != trks.Length; i++)
+            {
+                int idx = i;
+                Action update = () => Pads[PadIdx].WriteCal((GPCals)idx, (sbyte)trks[idx].Value);
+                nums[idx].Value = trks[idx].Value = Pads[PadIdx].Cals[idx];
+                trks[idx].ValueChanged += (object s, EventArgs e) => { nums[idx].Value = trks[idx].Value; update(); };
+                nums[idx].ValueChanged += (object s, EventArgs e) => { trks[idx].Value = (int)nums[idx].Value; };
+            }
+            df.btnReset.Click += (object s, EventArgs e) =>
+            {
+                if (MessageBox.Show(f, "Are you sure you want to reset the current settings?", "Reset", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+                for (int idx = 0; idx != (int)GPCals._MAX; idx++) nums[idx].Value = 0;
+            };
+            df.btnOK.Click += (object s, EventArgs e) => df.DialogResult = DialogResult.OK;
+            df.ShowDialog();
+        }
+
+        internal static void RenderDeadzones(Graphics g)
+        {
+            ushort[] gpVals = Pads[PadIdx].Vals;
+            sbyte[] gpCals = Pads[PadIdx].Cals;
+            g.Clear(SystemColors.Control);
+            for (int stick = 0; stick != 2; stick++)
+            {
+                int ofsVal = (stick == 0 ? 0 : ((int)GPIndices.RSTICK_U - (int)GPIndices.LSTICK_U));
+                int ofsCal = (stick == 0 ? 0 : ((int)GPCals.RDEADZONE - (int)GPCals.LDEADZONE));
+                float x = 200 + stick * 350, r = 80, d=r*2;
+                float rLimit = r * (1.0f - (gpCals[ofsCal+(int)GPCals.LLIMIT] / 100.0f)), dLimit = rLimit*2;
+                float rDead = r * (gpCals[ofsCal+(int)GPCals.LDEADZONE] / 100.0f), dDead = rDead*2;
+                float rAnti = r * (gpCals[ofsCal+(int)GPCals.LANTI] / 100.0f), dAnti = rAnti*2;
+                for (int corr = 0; corr != 2; corr++)
+                {
+                    ushort sr = (corr == 0 ? gpVals[ofsVal + (int)GPIndices.LSTICK_R] : DeadzoneAxis(ofsVal + (int)GPIndices.LSTICK_R, gpVals, gpCals));
+                    ushort sl = (corr == 0 ? gpVals[ofsVal + (int)GPIndices.LSTICK_L] : DeadzoneAxis(ofsVal + (int)GPIndices.LSTICK_L, gpVals, gpCals));
+                    ushort sd = (corr == 0 ? gpVals[ofsVal + (int)GPIndices.LSTICK_D] : DeadzoneAxis(ofsVal + (int)GPIndices.LSTICK_D, gpVals, gpCals));
+                    ushort su = (corr == 0 ? gpVals[ofsVal + (int)GPIndices.LSTICK_U] : DeadzoneAxis(ofsVal + (int)GPIndices.LSTICK_U, gpVals, gpCals));
+                    float valX = Math.Max(-1.0f, Math.Min(1.0f, (sr - sl)/65535.0f));
+                    float valY = Math.Max(-1.0f, Math.Min(1.0f, (sd - su)/65535.0f));
+                    string strx = valX.ToString("0.0%"), stry = valY.ToString("0.0%");
+                    SizeF szx = g.MeasureString(strx, f.lblMoreWii.Font), szy = g.MeasureString(stry, f.lblMoreWii.Font);
+                    float y = 10+r + corr * 360, sx = x + valX*r, sy = y + valY*r;
+                    g.FillRectangle(SystemBrushes.ControlDarkDark, x-r, y-r, d, d);
+                    g.DrawRectangle(PenBlack,                      x-r, y-r, d, d);
+                    if (corr == 0)
+                    {
+                        g.FillEllipse(Brushes.PaleVioletRed, x-r+0.5f, y-r+0.5f, d-1, d-1);
+                        g.FillEllipse(SystemBrushes.ControlDark, x-rLimit+0.5f, y-rLimit+0.5f, dLimit-1, dLimit-1);
+                        g.FillRectangle(Brushes.Pink, x-rLimit+2, y-rDead, dLimit-4, dDead);
+                        g.FillRectangle(Brushes.Pink, x-rDead, y-rLimit+2, dDead, dLimit-4);
+                        g.FillRectangle(Brushes.PaleVioletRed, x-rDead, y-rDead, dDead, dDead);
+                    }
+                    else
+                    {
+                        g.FillEllipse(SystemBrushes.ControlDark, x-r+0.5f, y-r+0.5f, d-1, d-1);
+                        g.FillRectangle(Brushes.PaleVioletRed, x-rAnti, y-rAnti, dAnti, dAnti);
+                    }
+                    g.DrawEllipse(PenBlack, x-r+0.5f, y-r+0.5f, d-1, d-1);
+                    g.DrawLine(PenThin, x-r, y, x+r, y);
+                    g.DrawLine(PenThin, x, y-r, x, y+r);
+                    g.FillRectangle(Brushes.Goldenrod, sx - 2, sy - 2, 5, 5);
+                    g.DrawString(strx, f.lblMoreWii.Font, (valX == 0.0f ? Brushes.Black : (valX > 0 ?  Brushes.DarkGreen : Brushes.DarkRed)), sx - szx.Width*0.5f, y+r+5);
+                    g.DrawString(stry, f.lblMoreWii.Font, (valY == 0.0f ? Brushes.Black : (valY > 0 ?  Brushes.DarkGreen : Brushes.DarkRed)), x+r+5, sy - szy.Height*0.5f);
+                }
+            }
+            g.RotateTransform(-90);
+            g.DrawString("Raw",       f.lblBigFont.Font, Brushes.Black, -130, 25);
+            g.DrawString("Corrected", f.lblBigFont.Font, Brushes.Black, -540, 25);
+            g.ResetTransform();
+        }}
 
     static class Window
     {
