@@ -1,5 +1,5 @@
 /* Gamepad Phoenix
-* Copyright (c) 2021-2022 Bernhard Schelling
+* Copyright (c) 2021-2023 Bernhard Schelling
 *
 * Gamepad Phoenix is free software: you can redistribute it and/or modify it under the terms
 * of the GNU General Public License as published by the Free Software Found-
@@ -429,14 +429,13 @@ static void SetupInput()
 	if (!OrgGetState) return; // XInput not available on this system
 
 	static GPXINPUT_STATE states[2][GPXI_XUSER_MAX_COUNT];
+	static unsigned char statebits[GPXI_XUSER_MAX_COUNT];
 	struct GPXICallbacks
 	{
 		static void Update(GPGamepad& gp)
 		{
 			//LOGSCOPE("GP: %d", (&gp - pGPData->Gamepads));
 			bool queried[GPXI_XUSER_MAX_COUNT] = { false, false, false, false };
-			static unsigned char statebit;
-			statebit ^= 1;
 
 			for (unsigned int i = 0, devnum; i != _GPIDX_MAX; i++)
 			{
@@ -447,7 +446,8 @@ static void SetupInput()
 						devnum = GPIDGetDevNum(gpId);
 						if (devnum < GPXI_XUSER_MAX_COUNT)
 						{
-							GPXINPUT_STATE& state = states[statebit][devnum];
+							if (!queried[devnum]) statebits[devnum] ^= 1;
+							GPXINPUT_STATE& state = states[statebits[devnum]][devnum];
 							if (!queried[devnum])
 							{
 								queried[devnum] = true;
@@ -488,7 +488,8 @@ static void SetupInput()
 						if (!(CaptureSources & (1 << GPIDINTERFACE_XINPUT))) break;
 						for (devnum = 0; devnum != GPXI_XUSER_MAX_COUNT; devnum++)
 						{
-							GPXINPUT_STATE &state = states[statebit][devnum], &prev = states[!statebit][devnum];
+							if (!queried[devnum]) statebits[devnum] ^= 1;
+							GPXINPUT_STATE &state = states[statebits[devnum]][devnum], &prev = states[!statebits[devnum]][devnum];
 							if (!queried[devnum])
 							{
 								queried[devnum] = true;
