@@ -203,6 +203,11 @@ namespace GamepadPhoenix
             Refresh(setPad: true, dontUpdateUndo: true);
         }
 
+        internal void AddUndoStep()
+        {
+            Refresh(false);
+        }
+
         internal void Read(GPIDSource captureSources = GPIDSource.NONE)
         {
             Funcs.UIPad(Index, ptrVals, (uint)captureSources);
@@ -804,7 +809,7 @@ namespace GamepadPhoenix
             AssignCancel();
             if (!doSave)
             {
-                PadPartAssign = PadParts[1];
+                PadPartAssign = PadParts[2];
                 PadPartAssign.oldId = Pads[PadIdx].IDs[(int)PadPartAssign.idx];
                 Pads[PadIdx].WriteID(PadPartAssign.idx, GPGamepad.GPID_CAPTURE_NEXT_KEY);
                 IsAutoLoad = true;
@@ -1308,6 +1313,7 @@ namespace GamepadPhoenix
                     IsDeviceSwitch = IsAutoLoad = false;
                     AssignQueue.Clear();
                     PadPartAssign = null;
+                    Pads[PadIdx].Pressed = GPIndices._MAX;
                     OnSelectTab();
                 }
                 else
@@ -1522,6 +1528,7 @@ namespace GamepadPhoenix
             {
                 if (Pads[PadIdx].IDs[(int)PadPartAssign.idx] != GPGamepad.GPID_CAPTURE_NEXT_KEY)
                 {
+                    if (AssignQueue.Count == 0) Pads[PadIdx].AddUndoStep();
                     FinishAssign();
                 }
                 if (PadPartAssign != null)
