@@ -469,8 +469,11 @@ namespace GamepadPhoenix
 
             games.Items.Clear();
             foreach (Config.Game g in cfg.Games)
+            {
                 games.Items.Add(g);
-
+                if ((g.Options & GPOption.IndirectLoading) != 0)
+                    IndirectLoading.UpgradeDLL(g.Target);
+            }
             excludes.Text = System.Text.RegularExpressions.Regex.Replace(cfg.ExcludeList.Trim(), "[\\0-\\x19|]+", Environment.NewLine);
         }
 
@@ -545,29 +548,32 @@ namespace GamepadPhoenix
         }
 
         internal enum Ver { None, Current, Old };
-        static Ver IsGPDLL(string path)
+        static bool IsGPDLL(string path, ref Ver ver, ref ushort machine)
         {
             FileInfo fi = new FileInfo(path);
-            if (!fi.Exists) return Ver.None;
+            if (!fi.Exists) return false;
             int len = (int)fi.Length;
-            if (len == Funcs.SizeDLL32 || len == Funcs.SizeDLL64) { return Ver.Current; }
+            if (len == Funcs.SizeDLL32) { ver = Ver.Current; machine = 0x014c; return true; }
+            if (len == Funcs.SizeDLL64) { ver = Ver.Current; machine = 0x8664; return true; }
             try { using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                ushort machine = 0; long rvaOffset = 0;
-                return (System.Text.Encoding.ASCII.GetString(ReadDirectory(fs, 0, ref machine, ref rvaOffset)).IndexOf("\0UIPad\0") != -1 ? Ver.Old : Ver.None); // also contains original linked dll file name
+                long rvaOffset = 0;
+                if (System.Text.Encoding.ASCII.GetString(ReadDirectory(fs, 0, ref machine, ref rvaOffset)).IndexOf("\0UIPad\0") == -1) return false; // also contains original linked dll file name
+                ver = Ver.Old;
+                return true;
             }} catch {}
-            return Ver.None;
+            return false;
         }
 
         internal static void ClearIndirectDLLs(string target)
         {
             try
             {
-                string dir = Path.GetDirectoryName(target);
+                string dir = Path.GetDirectoryName(target); Ver ver = Ver.None; ushort machine = 0;
                 foreach (string dll in DllOverrides)
                 {
-                    string path = dir + "\\" + dll + ".DLL";
-                    if (!File.Exists(path) || IsGPDLL(path) == Ver.None) continue;
+                    string path = dir + "\\" + dll + ".DLL"; 
+                    if (!File.Exists(path) || !IsGPDLL(path, ref ver, ref machine)) continue;
                     File.Delete(path);
                     try { File.Delete(path.Substring(0, path.Length - 3) + "INI"); } catch {  }
                     MessageBox.Show("Prepared game has been reverted and " + dll + ".DLL next to the game has been removed.", "Restore Game", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -577,14 +583,27 @@ namespace GamepadPhoenix
 
         static bool CopyDLL(string dir, string dll, ushort machine)
         {
-            string path = dir + "\\" + dll + ".DLL";
+            string path = dir + "\\" + dll + ".DLL"; Ver ver = Ver.None; ushort gpmachine = 0;
             bool exists = File.Exists(path);
-            if (exists && IsGPDLL(path) == Ver.None) return false;
+            if (exists && !IsGPDLL(path, ref ver, ref gpmachine)) return false;
             string gpDll = "GamepadPhoenix" + (machine == 0x8664 ? "64" : "32") + ".dll";
             if (!exists || new FileInfo(path).Length != new FileInfo(gpDll).Length)
                 File.Copy(gpDll, path, true);
             MessageBox.Show("Game has been prepared and " + gpDll + " has been copied next to the game as " + dll + ".DLL\n\nNow start the game through its launcher or store. You can also try launching it from here.\n\nBe aware that this tool needs to be running when doing so.", "Prepare Game", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return true;
+        }
+
+        internal static void UpgradeDLL(string target)
+        {
+            string dir = Path.GetDirectoryName(target); Ver ver = Ver.None; ushort machine = 0;
+            foreach (string dll in DllOverrides)
+            {
+                string path = dir + "\\" + dll + ".DLL";
+                if (!IsGPDLL(path, ref ver, ref machine)) continue;
+                if (ver == Ver.Current) return;
+                string gpDll = "GamepadPhoenix" + (machine == 0x8664 ? "64" : "32") + ".dll";
+                File.Copy(gpDll, path, true);
+            }
         }
 
         internal static bool PrepareIndirectDLL(string target)
@@ -630,9 +649,9 @@ namespace GamepadPhoenix
 
         internal static Ver IsPrepared(string target, ref string path)
         {
-            string dir = Path.GetDirectoryName(target);
+            string dir = Path.GetDirectoryName(target); Ver ver = Ver.None; ushort machine = 0;
             foreach (string dll in DllOverrides)
-                { string p = dir + "\\" + dll + ".DLL"; Ver v = IsGPDLL(p); if (v != Ver.None) { path = p; return v; } }
+                { string p = dir + "\\" + dll + ".DLL"; if (IsGPDLL(p, ref ver, ref machine)) { path = p; return ver; } }
             return Ver.None;
         }
     }
