@@ -514,6 +514,23 @@ struct GPDIKeyboardState
 	}
 };
 
+struct GPDIMouseState
+{
+	enum { AXIS_COUNT = 3, BUTTON_COUNT = 8, EXCESS_SIZE = (BUTTON_COUNT*sizeof(BYTE)) };
+	union { LONG axes[AXIS_COUNT]; struct { LONG x, y, z; }; };
+	BYTE buttons[BUTTON_COUNT], held[BUTTON_COUNT];
+	static const GPDIDataFormat* GetDataFormat()
+	{
+		static GPDIDataFormat dfMouse;
+		static GPDIObjectDataFormat dfMouseObjs[AXIS_COUNT+BUTTON_COUNT];
+		const GUID* axisGuids[AXIS_COUNT] = { &GPDI_GUID_ObjXAxis, &GPDI_GUID_ObjYAxis, &GPDI_GUID_ObjZAxis };
+		for (int i = 0; i !=   AXIS_COUNT; i++) dfMouseObjs[i]            = { axisGuids[i],         (DWORD)FIELD_OFFSET(GPDIMouseState,    axes[i]), GPDIDFT_AXIS   | GPDIDFT_ANYINSTANCE | (i >= 2 ? GPDIDFT_OPTIONAL : 0), 0, };
+		for (int i = 0; i != BUTTON_COUNT; i++) dfMouseObjs[AXIS_COUNT+i] = { &GPDI_GUID_ObjButton, (DWORD)FIELD_OFFSET(GPDIMouseState, buttons[i]), GPDIDFT_BUTTON | GPDIDFT_ANYINSTANCE | (i >= 1 ? GPDIDFT_OPTIONAL : 0), 0, };
+		dfMouse = { sizeof(GPDIDataFormat), sizeof(GPDIObjectDataFormat), GPDIDF_RELAXIS, sizeof(GPDIMouseState)-EXCESS_SIZE, AXIS_COUNT+BUTTON_COUNT, dfMouseObjs };
+		return &dfMouse;
+	}
+};
+
 struct GPDIObj
 {
 	enum EMap : unsigned char { NONE, AXIS_STICK, AXIS_MERGELSTICKANDDPAD, AXIS_PAIR, AXIS_SINGLE, BUTTON, DPAD, AXIS_UNMAPPED };
@@ -965,15 +982,8 @@ struct GPDirectInputDevice
 
 				write_want:
 					static DWORD seq = 133147;
-					if (haveNum == 1)
-					{
-						seq += 2;
-						rgdod->dwTimeStamp = GetTickCount();
-					}
-					else
-					{
-						rgdod->dwTimeStamp = rgdod[-1].dwTimeStamp;
-					}
+					if (haveNum == 1) seq += 2;
+					rgdod->dwTimeStamp = GP.TimeStamp;
 					rgdod->dwOfs = o.dwOfs;
 					rgdod->dwSequence = seq;
 					if (cbObjectData == sizeof(*rgdod)) rgdod->uAppData = (UINT_PTR)-1;
@@ -2003,8 +2013,8 @@ static void SetupInput()
 	if (!ModuleCreate8) return; // dinput not available on this system
 
 	enum { GPDI_MAX_MAPPED_DEVICES = 32 }; //because of bitmask in Update
-	union GPDIMappedState { GPDIJoyState joy; GPDIKeyboardState key; };
-	struct GPDIMappedDevice { GPDirectInputDevice* dev; unsigned int intf_devnum; wchar_t* name; DWORD szState; GPDIMappedState state[2]; unsigned char statebit; };
+	union GPDIMappedState { GPDIJoyState joy; GPDIKeyboardState key; GPDIMouseState mouse; };
+	struct GPDIMappedDevice { GPDirectInputDevice* dev; unsigned int intf_devnum; wchar_t* name; DWORD szState; GPDIMappedState state[2]; unsigned char statebit; bool capturing; };
 	static GPVector<GPDIMappedDevice> MappedDevices;
 	static HWND deviceNotificationHwnd = 0;
 	static bool deviceUpdateNeeded;
@@ -2030,7 +2040,6 @@ static void SetupInput()
 		static BOOL CALLBACK Enum(const GPDIDeviceInstance* di, LPVOID pdii)
 		{
 			LOGSCOPE("DevType: %u - InstanceName: %S", di->dwDevType, di->tszInstanceName);
-			if ((di->dwDevType & GPDIDEVTYPE_MASK) == GPDI8DEVTYPE_MOUSE) return GPDIENUM_CONTINUE;
 			if (MappedDevices.size() == GPDI_MAX_MAPPED_DEVICES) { WriteLog("Reached maximum of %d supported DirectInput devices!\n", GPDI_MAX_MAPPED_DEVICES); return GPDIENUM_STOP; }
 			GPDirectInputDevice* dev = NULL;
 			if (FAILED(((GPDirectInputInterface*)pdii)->CreateDevice(di->guidInstance, &dev, NULL))) return GPDIENUM_CONTINUE;
@@ -2064,6 +2073,11 @@ static void SetupInput()
 				if (FAILED(dev->SetDataFormat(GPDIKeyboardState::GetDataFormat()))) { dev->Release(); return GPDIENUM_CONTINUE; }
 				MappedDevices.push_back({ dev, GPIDMake(GPIDINTERFACE_KEYBOARD, 0, 0), NULL, (DWORD)sizeof(GPDIKeyboardState) });
 			}
+			else if ((di->dwDevType & GPDIDEVTYPE_MASK) == GPDI8DEVTYPE_MOUSE)
+			{
+				if (FAILED(dev->SetDataFormat(GPDIMouseState::GetDataFormat()))) { dev->Release(); return GPDIENUM_CONTINUE; }
+				MappedDevices.push_back({ dev, GPIDMake(GPIDINTERFACE_MOUSE, 0, 0), NULL, (DWORD)sizeof(GPDIMouseState)-GPDIMouseState::EXCESS_SIZE });
+			}
 			return GPDIENUM_CONTINUE;
 		}
 
@@ -2085,12 +2099,13 @@ static void SetupInput()
 
 			if (!MappedDevices.size()) return;
 			GPDIMappedDevice *md, *mdBegin = &MappedDevices[0], *mdEnd = mdBegin + MappedDevices.size();
+			GPDIMappedState *state, *state_prev;
 			for (unsigned int md_intf_devnum = 0, polledDevices = 0, i = 0; i != _GPIDX_MAX; i++)
 			{
 				unsigned int gpId = gp.IDs[i];
 				switch (GPIDGetInterface(gpId))
 				{
-					case GPIDINTERFACE_KEYBOARD: case GPIDINTERFACE_DINPUT: case GPIDINTERFACE_CAPTURE_NEXT_KEY: break;
+					case GPIDINTERFACE_KEYBOARD: case GPIDINTERFACE_MOUSE: case GPIDINTERFACE_DINPUT: case GPIDINTERFACE_CAPTURE_NEXT_KEY: break;
 					default: continue;
 				}
 				unsigned int gp_intf_devnum = (gpId & GPID_INTF_DEVNUM_MASK);
@@ -2110,8 +2125,20 @@ static void SetupInput()
 										md->dev->Poll();
 
 							md->dev->GetDeviceState(md->szState, &md->state[md->statebit ^= 1]);
+
+							if (isCapture != md->capturing)
+							{
+								md->capturing = isCapture;
+								if (isCapture)
+								{
+									// clear existing state
+									md->dev->Poll();
+									md->dev->GetDeviceState(md->szState, &md->state[0]);
+									md->dev->GetDeviceState(md->szState, &md->state[1]);
+								}
+							}
 						}
-						if (!isCapture) { md_intf_devnum = md->intf_devnum; break; }
+						if (!isCapture) { state = &md->state[md->statebit]; md_intf_devnum = md->intf_devnum; break; }
 					}
 					if (md == mdEnd) { md_intf_devnum = 0; if (!isCapture) continue; }
 				}
@@ -2120,8 +2147,33 @@ static void SetupInput()
 					case GPIDINTERFACE_KEYBOARD:
 					{
 						unsigned int o = GPIDGetObjNum(gpId);
-						BYTE pressed = (o < GPDI_MAX_KEYBOARD ? md->state[md->statebit].key.keys[o] : 0);
+						BYTE pressed = (o < GPDI_MAX_KEYBOARD ? state->key.keys[o] : 0);
 						gp.Vals[i] = (pressed ? 0xFFFF : 0);
+						break;
+					}
+					case GPIDINTERFACE_MOUSE:
+					{
+						unsigned int o = GPIDGetObjNum(gpId);
+						if (o < (GPDIMouseState::AXIS_COUNT*2))
+						{
+							LONG val = state->mouse.axes[o / 2];
+							switch (o & 1)
+							{
+								case 0: val = (val > 0 ? ( val * 600) : 0); break;
+								case 1: val = (val < 0 ? (-val * 600) : 0); break;
+							}
+							// use the Sensitivity analog stick calibration value as a factor to decide how fast mouse controlled sticks move back to the center
+							float sens = (i <= GPIDX_RSTICK_R ? 0.01f+0.00045f*(gp.Cals[i <= GPIDX_LSTICK_R ? GPCAL_LSENS : GPCAL_RSENS]+100) : 0.07f);
+							float factor = powf(0.75f, gp.DeltaTime * sens);
+							val += (int)(gp.Vals[i] * factor);
+							gp.Vals[i] = (unsigned short)(val > 0xFFFF ? 0xFFFF : val);
+							if (gp.Vals[i] > 0x4000 && i <= GPIDX_RSTICK_R) gp.Vals[i^1] = 0; // clear other side of analog stick axis
+						}
+						else if (o < (GPDIMouseState::AXIS_COUNT*2+GPDIMouseState::BUTTON_COUNT))
+						{
+							BYTE pressed = state->mouse.buttons[o-(GPDIMouseState::AXIS_COUNT*2)];
+							gp.Vals[i] = (pressed ? 0xFFFF : 0);
+						}
 						break;
 					}
 					case GPIDINTERFACE_DINPUT:
@@ -2129,7 +2181,7 @@ static void SetupInput()
 						unsigned int o = GPIDGetObjNum(gpId);
 						if (o < (GPDIJoyState::AXIS_COUNT*4))
 						{
-							DWORD val = md->state[md->statebit].joy.axes[o / 4];
+							DWORD val = state->joy.axes[o / 4];
 							switch (o & 3)
 							{
 								case 0: gp.Vals[i] = (val > 0x8000 ? (unsigned short)((val - 0x8000) * 0xFFFF / 0x7FFF) : 0); break;
@@ -2140,7 +2192,7 @@ static void SetupInput()
 						}
 						else if (o < (GPDIJoyState::AXIS_COUNT*4+GPDIJoyState::POV_COUNT*4))
 						{
-							DWORD val = md->state[md->statebit].joy.pov[(o-(GPDIJoyState::AXIS_COUNT*4)) / 4];
+							DWORD val = state->joy.pov[(o-(GPDIJoyState::AXIS_COUNT*4)) / 4];
 							switch (o & 3)
 							{
 								case 0: gp.Vals[i] = ((val < 6000 || (val > 30000 && val <= 42000)) ? 0xFFFF : 0); break;
@@ -2151,7 +2203,7 @@ static void SetupInput()
 						}
 						else if (o < (GPDIJoyState::AXIS_COUNT*4+GPDIJoyState::POV_COUNT*4+GPDIJoyState::BUTTON_COUNT))
 						{
-							BYTE pressed = md->state[md->statebit].joy.buttons[o-(GPDIJoyState::AXIS_COUNT*4+GPDIJoyState::POV_COUNT*4)];
+							BYTE pressed = state->joy.buttons[o-(GPDIJoyState::AXIS_COUNT*4+GPDIJoyState::POV_COUNT*4)];
 							gp.Vals[i] = (pressed ? 0xFFFF : 0);
 						}
 						break;
@@ -2159,19 +2211,38 @@ static void SetupInput()
 					case GPIDINTERFACE_CAPTURE_NEXT_KEY:
 						for (md = mdBegin; md != mdEnd; md++)
 						{
-							GPDIMappedState &state = md->state[md->statebit], &state_prev = md->state[!md->statebit];
+							state = &md->state[md->statebit], state_prev = &md->state[!md->statebit];
 							switch (GPIDGetInterface(md->intf_devnum))
 							{
 								case GPIDINTERFACE_KEYBOARD:
-									for (unsigned int o = 0; o != sizeof(state.key.keys); o++)
-										if (!state_prev.key.keys[o] && state.key.keys[o])
+									if (!(CaptureSources & (1 << GPIDINTERFACE_KEYBOARD))) continue;
+									for (unsigned int o = 0; o != sizeof(state->key.keys); o++)
+										if (!state_prev->key.keys[o] && state->key.keys[o])
 											{ gp.IDs[i] = GPIDMake(GPIDINTERFACE_KEYBOARD, 0, o); break; }
+									break;
+								case GPIDINTERFACE_MOUSE:
+									if (!(CaptureSources & (1 << GPIDINTERFACE_MOUSE))) continue;
+									for (unsigned int j = 0; j != GPDIMouseState::AXIS_COUNT; j++)
+									{
+										LONG val = state->mouse.axes[j], prev = state_prev->mouse.axes[j];
+										unsigned int mode =
+											(prev <  0x20 && val >=  0x20 ? 0 :
+											(prev > -0x20 && val <= -0x20 ? 1 : 0xFF));
+										if (mode == 0xFF) continue;
+										gp.IDs[i] = md->intf_devnum + j * 2 + mode;
+										break;
+									}
+									for (unsigned int j = 0; j != GPDIMouseState::BUTTON_COUNT; j++)
+									{
+										if (!state->mouse.buttons[j]) { state_prev->mouse.held[j] = 0; state->mouse.held[j] = 0; }
+										else if (state->mouse.held[j]++ == 5) { state_prev->mouse.held[j] = 0; state->mouse.held[j] = 0; gp.IDs[i] = md->intf_devnum + j + (GPDIMouseState::AXIS_COUNT*2); break; }
+									}
 									break;
 								case GPIDINTERFACE_DINPUT:
 									if (!(CaptureSources & (1 << GPIDINTERFACE_DINPUT))) continue;
 									for (unsigned int j = 0; j != GPDIJoyState::AXIS_COUNT; j++)
 									{
-										DWORD val = state.joy.axes[j], prev = state_prev.joy.axes[j];
+										DWORD val = state->joy.axes[j], prev = state_prev->joy.axes[j];
 										unsigned int mode =
 											(prev < 0xC000 && val >= 0xC000 ? 0 :
 											(prev > 0x4000 && val <= 0x4000 ? 1 : 0xFF));
@@ -2181,8 +2252,8 @@ static void SetupInput()
 									}
 									for (unsigned int j = 0; j != GPDIJoyState::POV_COUNT; j++)
 									{
-										if (state_prev.joy.pov[j] <= 39000) continue;
-										DWORD val = state.joy.pov[j];
+										if (state_prev->joy.pov[j] <= 39000) continue;
+										DWORD val = state->joy.pov[j];
 										unsigned int mode =
 											((val < 3000 || (val > 33000 && val <= 39000)) ? 0 :
 											((val > 15000 && val < 21000) ? 1 :
@@ -2194,7 +2265,7 @@ static void SetupInput()
 									}
 									for (unsigned int j = 0; j != GPDIJoyState::BUTTON_COUNT; j++)
 									{
-										if (state_prev.joy.buttons[j] || !state.joy.buttons[j]) continue;
+										if (state_prev->joy.buttons[j] || !state->joy.buttons[j]) continue;
 										gp.IDs[i] = md->intf_devnum + j + (GPDIJoyState::AXIS_COUNT*4+GPDIJoyState::POV_COUNT*4);
 										break;
 									}

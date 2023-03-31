@@ -1519,9 +1519,12 @@ namespace GamepadPhoenix
             this.cmbAssignSource.ItemHeight = 13;
             this.cmbAssignSource.Items.AddRange(new object[] {
             "Assign from any source",
+            "Assign only from Gamepads",
             "Assign only from XInput",
             "Assign only from DirectInput",
-            "Assign only from Wii Controllers"});
+            "Assign only from Wii Controllers",
+            "Assign only from Keyboard",
+            "Assign only from Mouse"});
             this.cmbAssignSource.Location = new System.Drawing.Point(621, 7);
             this.cmbAssignSource.Name = "cmbAssignSource";
             this.cmbAssignSource.Size = new System.Drawing.Size(175, 21);

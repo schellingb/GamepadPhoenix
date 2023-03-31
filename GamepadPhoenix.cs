@@ -63,16 +63,20 @@ namespace GamepadPhoenix
         DINPUT,
         XINPUT,
         WII,
+        MOUSE,
         CAPTURE_NEXT_KEY,
     }
 
     internal enum GPIDSource
     {
-        NONE   = 0,
-        ALL    = (1 << (int)GPIDInterface.XINPUT) | (1 << (int)GPIDInterface.DINPUT) | (1 << (int)GPIDInterface.WII),
-        XINPUT = (1 << (int)GPIDInterface.XINPUT),
-        DINPUT = (1 << (int)GPIDInterface.DINPUT),
-        WII    = (1 << (int)GPIDInterface.WII),
+        NONE     = 0,
+        ALL      = (1 << (int)GPIDInterface.XINPUT) | (1 << (int)GPIDInterface.DINPUT) | (1 << (int)GPIDInterface.WII) | (1 << (int)GPIDInterface.KEYBOARD) | (1 << (int)GPIDInterface.MOUSE),
+        GAMEPADS = (1 << (int)GPIDInterface.XINPUT) | (1 << (int)GPIDInterface.DINPUT) | (1 << (int)GPIDInterface.WII),
+        XINPUT   = (1 << (int)GPIDInterface.XINPUT),
+        DINPUT   = (1 << (int)GPIDInterface.DINPUT),
+        WII      = (1 << (int)GPIDInterface.WII),
+        KEYBOARD = (1 << (int)GPIDInterface.KEYBOARD),
+        MOUSE    = (1 << (int)GPIDInterface.MOUSE),
     };
 
     internal enum GPIndices : byte
@@ -92,6 +96,7 @@ namespace GamepadPhoenix
         internal const int NUM_GAMEPADS = 4, NUM_INDICES = (int)GPIndices._MAX, NUM_CALS = (int)GPCals._MAX;
         internal const uint GPID_CAPTURE_NEXT_KEY = (uint)GPIDInterface.CAPTURE_NEXT_KEY << GPID_SHIFT_INTF;
         internal const uint GPID_KEYBOARD_DEVICE = (uint)GPIDInterface.KEYBOARD << GPID_SHIFT_INTF;
+        internal const uint GPID_MOUSE_DEVICE = (uint)GPIDInterface.MOUSE << GPID_SHIFT_INTF;
 
         internal uint[] IDs = new uint[NUM_INDICES];
         internal ushort[] Vals = new ushort[NUM_INDICES];
@@ -128,9 +133,10 @@ namespace GamepadPhoenix
             {
                 if (id == 0) continue;
                 uint intfDev = (id & ~(uint)((1 << GPID_SHIFT_DEVNUM) - 1));
-                sameIntfDev = (sameIntfDev == 0 || sameIntfDev == intfDev ? intfDev : uint.MaxValue);
+                if (sameIntfDev == 0) sameIntfDev = intfDev;
+                else if (sameIntfDev != intfDev) return GPIDInterface.NONE;
             }
-            return (sameIntfDev != 0 && sameIntfDev != uint.MaxValue && sameIntfDev != GPID_KEYBOARD_DEVICE ? GPIDGetInterface(sameIntfDev) : GPIDInterface.NONE);
+            return (sameIntfDev != 0 && sameIntfDev != GPID_KEYBOARD_DEVICE && sameIntfDev != GPID_MOUSE_DEVICE ? GPIDGetInterface(sameIntfDev) : GPIDInterface.NONE);
         }
 
         void Refresh(bool setPad = false, bool dontUpdateUndo = false)
@@ -214,7 +220,7 @@ namespace GamepadPhoenix
             if (captureSources != GPIDSource.NONE) Funcs.UIGetPad(Index, ptrIDs, ptrCals);
             GPIndices down = GPIndices._MAX;
             for (int i = 0; i != NUM_INDICES; i++) { if ((Vals[i] & 0x8000) != 0) { down = (GPIndices)i; if (down != GPIndices.BTN_BACK) break; } }
-            if (down != GPIndices._MAX && down != Pressed && GPIDGetInterface(IDs[(int)down]) != GPIDInterface.KEYBOARD) GUI.OnPadButton(this, down);
+            if (down != GPIndices._MAX && down != Pressed && GPIDGetInterface(IDs[(int)down]) != GPIDInterface.KEYBOARD && GPIDGetInterface(IDs[(int)down]) != GPIDInterface.MOUSE) GUI.OnPadButton(this, down);
             Pressed = down;
         }
 
@@ -248,6 +254,11 @@ namespace GamepadPhoenix
                     obj = Names.GetKeyboard(GPIDGetObjNum(id));
                     btn.Text = "Key " + obj;
                     toolTip.SetToolTip(btn, "Keyboard key '" + obj + "'");
+                    return;
+                case GPIDInterface.MOUSE:
+                    obj = Names.GetMouse(GPIDGetObjNum(id));
+                    btn.Text = "Mouse " + obj;
+                    toolTip.SetToolTip(btn, "Mouse input '" + obj + "'");
                     return;
                 case GPIDInterface.DINPUT:
                     dev = Marshal.PtrToStringUni(Funcs.UIGetDIName(GPIDGetDevNum(id)));
@@ -313,26 +324,32 @@ namespace GamepadPhoenix
                 "Pad B", "Pad A", "Pad Y", "Pad X", "Pad Home",
                 "Left Trigger", "Right Trigger",
             };
+            static string[] MouseObj = new string[]
+            {
+                "Move Right", "Move Left", "Move Down", "Move Up", "Mouse Wheel Up", "Mouse Wheel Down", "Left Click", "Right Click", "Middle Click",
+            };
             internal static string GetKeyboard(uint o) { return KeyboardKeys[o >= KeyboardKeys.Length ? 0 : o]; }
             internal static string GetXInput(uint o) { return XInputObj[o >= XInputObj.Length ? 0 : o]; }
             enum GPDIJoyState { AXIS_COUNT = 8, POV_COUNT = 4, BUTTON_COUNT = 64 };
             internal static string GetDirectInput(uint o)
             {
                 if (o < ((uint)GPDIJoyState.AXIS_COUNT*4))
-                {
                     return ((o & 2) == 2 ? "Inv" : "") + "Axis " + (1+o/4).ToString() + ((o & 1) == 1 ? "+" : "-");
-                }
-                else if (o < ((uint)GPDIJoyState.AXIS_COUNT*4+(uint)GPDIJoyState.POV_COUNT*4))
-                {
+                if (o < ((uint)GPDIJoyState.AXIS_COUNT*4+(uint)GPDIJoyState.POV_COUNT*4))
                     return "POV " + (1+(o-((uint)GPDIJoyState.AXIS_COUNT*4))/4).ToString() + " " + ((o&3)==0 ? "Up" : ((o&3)==1 ? "Down" : ((o&3)==2 ? "Left" : "Right")));
-                }
-                else if (o < ((uint)GPDIJoyState.AXIS_COUNT*4+(uint)GPDIJoyState.POV_COUNT*4+(uint)GPDIJoyState.BUTTON_COUNT))
-                {
+                if (o < ((uint)GPDIJoyState.AXIS_COUNT*4+(uint)GPDIJoyState.POV_COUNT*4+(uint)GPDIJoyState.BUTTON_COUNT))
                     return "Button " + (1+o-((uint)GPDIJoyState.AXIS_COUNT*4+(uint)GPDIJoyState.POV_COUNT*4)).ToString();
-                }
                 return "";
             }
             internal static string GetWii(uint o) { return WiiObj[o >= WiiObj.Length ? 0 : o]; }
+            enum GPDIMouseState { AXIS_COUNT = 3, BUTTON_COUNT = 8 };
+            internal static string GetMouse(uint o)
+            {
+                if (o < (uint)MouseObj.Length) return MouseObj[o];
+                if (o < ((uint)GPDIMouseState.AXIS_COUNT*2+(uint)GPDIMouseState.BUTTON_COUNT))
+                    return "Button " + (1+o-((uint)GPDIMouseState.AXIS_COUNT*2)).ToString();
+                return "";
+            }
         }
     }
 
@@ -1458,9 +1475,12 @@ namespace GamepadPhoenix
                 switch (f.cmbAssignSource.SelectedIndex)
                 {
                     case 0: captureSources = GPIDSource.ALL; break;
-                    case 1: captureSources = GPIDSource.XINPUT; break;
-                    case 2: captureSources = GPIDSource.DINPUT; break;
-                    case 3: captureSources = GPIDSource.WII; break;
+                    case 1: captureSources = GPIDSource.GAMEPADS; break;
+                    case 2: captureSources = GPIDSource.XINPUT; break;
+                    case 3: captureSources = GPIDSource.DINPUT; break;
+                    case 4: captureSources = GPIDSource.WII; break;
+                    case 5: captureSources = GPIDSource.KEYBOARD; break;
+                    case 6: captureSources = GPIDSource.MOUSE; break;
                     default: throw new System.Exception();
                 }
                 if (IsDeviceSwitch) captureSources = (GPIDSource)(1 << (int)GPGamepad.GPIDGetInterface(PadPartAssign.oldId));

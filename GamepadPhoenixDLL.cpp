@@ -80,6 +80,7 @@ struct GPGamepad
 	signed char Cals[_GPCAL_MAX];
 	int CalFix[_GPIDX_MAXCAL], CalAnti[_GPIDX_MAXCAL], CalInRange[_GPIDX_MAXCAL], CalOutRange[_GPIDX_MAXCAL];
 	float CalSens[_GPIDX_MAXCAL];
+	unsigned int TimeStamp, DeltaTime;
 	void CalcCals()
 	{
 		for (int idx = 0; idx != _GPIDX_MAXCAL; idx++)
@@ -136,6 +137,7 @@ enum GPIDInterface
 	GPIDINTERFACE_DINPUT,
 	GPIDINTERFACE_XINPUT,
 	GPIDINTERFACE_WII,
+	GPIDINTERFACE_MOUSE,
 	GPIDINTERFACE_CAPTURE_NEXT_KEY,
 	GPID_CAPTURE_NEXT_KEY = GPIDINTERFACE_CAPTURE_NEXT_KEY << 29,
 	GPID_SHIFT_INTF = 29,
@@ -387,6 +389,9 @@ static void RunInputUpdaters(GPGamepad& gp)
 	//LOGSCOPE("GP: %d - InputLock: %d", (&gp - pGPData->Gamepads), InputLock);
 	if (InputLock) return;
 	GPLock(&InputLock, 3);
+	unsigned int tick = GetTickCount();
+	gp.DeltaTime = tick - gp.TimeStamp;
+	gp.TimeStamp = tick;
 	for (void (*fn)(GPGamepad&) : InputUpdaters) fn(gp);
 	InputLock = 0;
 }
