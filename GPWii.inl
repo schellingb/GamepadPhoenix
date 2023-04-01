@@ -1,5 +1,5 @@
 /* Gamepad Phoenix
-* Copyright (c) 2021-2022 Bernhard Schelling
+* Copyright (c) 2021-2023 Bernhard Schelling
 *
 * Gamepad Phoenix is free software: you can redistribute it and/or modify it under the terms
 * of the GNU General Public License as published by the Free Software Found-

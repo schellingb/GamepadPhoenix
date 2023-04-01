@@ -23,9 +23,9 @@ using GamepadPhoenix;
 
 [assembly: System.Reflection.AssemblyTitle("Gamepad Phoenix")]
 [assembly: System.Reflection.AssemblyProduct("Gamepad Phoenix")]
-[assembly: System.Reflection.AssemblyVersion("0.9.4")]
-[assembly: System.Reflection.AssemblyFileVersion("0.9.4")]
-[assembly: System.Reflection.AssemblyCopyright("(C) 2021-2022 Bernhard Schelling")]
+[assembly: System.Reflection.AssemblyVersion("0.9.5")]
+[assembly: System.Reflection.AssemblyFileVersion("0.9.5")]
+[assembly: System.Reflection.AssemblyCopyright("(C) 2021-2023 Bernhard Schelling")]
 [assembly: System.Runtime.InteropServices.ComVisible(false)]
 
 namespace GamepadPhoenix
@@ -1590,7 +1590,7 @@ namespace GamepadPhoenix
         {
             fireLogo.DrawText(f.lblBigFont.Font, "Gamepad Phoenix", 30, Brushes.Yellow, 2);
             fireLogo.DrawText(f.lblMoreWii.Font, "Version " + Application.ProductVersion, 80, Brushes.Pink, 1);
-            fireLogo.DrawText(f.lblMoreWii.Font, "Gamepad Phoenix - Copyright (c) 2021-2022 Bernhard Schelling", fireLogo.Height - 45, Brushes.LightYellow, 1);
+            fireLogo.DrawText(f.lblMoreWii.Font, "Gamepad Phoenix - Copyright (c) 2021-2023 Bernhard Schelling", fireLogo.Height - 45, Brushes.LightYellow, 1);
             fireLogo.DrawText(f.lblMoreWii.Font, "Powered by MinHook - Copyright (c) 2009-2017 Tsuda Kageyu", fireLogo.Height - 25, Brushes.LightYellow, 1);
         }
 
