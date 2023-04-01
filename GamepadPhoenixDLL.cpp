@@ -17,7 +17,6 @@
 #include "minhook.inl"
 #include <windows.h>
 #include <stdarg.h>
-#include <math.h>
 #include <type_traits>
 
 #ifdef NDEBUG
@@ -39,6 +38,9 @@ static bool DEBUGBROKE;
 #else
 #define GPINLINE inline __attribute__((always_inline))
 #endif
+
+static float sse2powf(float x, float y);
+#define GPPow(N,P) sse2powf(N, P)
 
 enum GPOption : unsigned short
 {
@@ -107,7 +109,7 @@ struct GPGamepad
 		else
 		{
 			w = (unsigned int)v * CalOutRange[idx] / CalInRange[idx];
-			if (CalSens[idx]) w = (int)(powf((float)w / CalOutRange[idx], CalSens[idx]) * CalOutRange[idx]);
+			if (CalSens[idx]) w = (int)(GPPow((float)w / CalOutRange[idx], CalSens[idx]) * CalOutRange[idx]);
 			w += CalAnti[idx];
 		}
 		if (!mergeDPad) return (unsigned short)w;
@@ -933,3 +935,97 @@ extern "C" void* __crtIsValidLocaleName() {GPASSERT(0);return 0;}
 extern "C" void* __crtEnumSystemLocalesEx() {GPASSERT(0);return 0;}
 extern "C" void* __crtGetUserDefaultLocaleName() {GPASSERT(0);return 0;}
 extern "C" void* __crtDownlevelLCIDToLocaleName() {GPASSERT(0);return 0;}
+
+// save 10kb by using SSE2 intrinsic based powf function instead of libcrt's
+#include <emmintrin.h>
+static float sse2powf(float x, float y)
+{
+	// Based on SIMD implementation of sin, cos, exp and log by Julien Pommier (http://gruntthepeon.free.fr/ssemath/)
+	// Copyright (C) 2007  Julien Pommier
+	// This software is provided 'as-is', without any express or implied warranty.  In no event will the authors be held liable for any damages arising from the use of this software.
+	// Permission is granted to anyone to use this software for any purpose, including commercial applications, and to alter it and redistribute it freely, subject to the following restrictions:
+	//  1. The origin of this software must not be misrepresented; you must not claim that you wrote the original software. If you use this software in a product, an acknowledgment in the product documentation would be appreciated but is not required.
+	//  2. Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
+	//  3. This notice may not be removed or altered from any source distribution.
+	// Code was adapted for Gamepad Phoenix to be the minimum requirement for just the powf function
+	#define _PS_CONST(Type, Name, Val)   static const __declspec(align(16)) Type _ps_##Name[4] = { Val, Val, Val, Val }
+	_PS_CONST(float,             1,   1.0f);
+	_PS_CONST(float,           0p5,   0.5f);
+	_PS_CONST(float,        exp_hi,  88.3762626647949f);
+	_PS_CONST(float,        exp_lo, -88.3762626647949f);
+	_PS_CONST(float, cephes_SQRTHF,   0.707106781186547524f);
+	_PS_CONST(float, cephes_log_p0,   7.0376836292E-2f);
+	_PS_CONST(float, cephes_log_p1,  -1.1514610310E-1f);
+	_PS_CONST(float, cephes_log_p2,   1.1676998740E-1f);
+	_PS_CONST(float, cephes_log_p3,  -1.2420140846E-1f);
+	_PS_CONST(float, cephes_log_p4,   1.4249322787E-1f);
+	_PS_CONST(float, cephes_log_p5,  -1.6668057665E-1f);
+	_PS_CONST(float, cephes_log_p6,   2.0000714765E-1f);
+	_PS_CONST(float, cephes_log_p7,  -2.4999993993E-1f);
+	_PS_CONST(float, cephes_log_p8,   3.3333331174E-1f);
+	_PS_CONST(float, cephes_log_q1,  -2.12194440e-4f);
+	_PS_CONST(float, cephes_log_q2,   0.693359375f);
+	_PS_CONST(float, cephes_LOG2EF,   1.44269504088896341f);
+	_PS_CONST(float, cephes_exp_C1,   0.693359375f);
+	_PS_CONST(float, cephes_exp_C2,  -2.12194440e-4f);
+	_PS_CONST(float, cephes_exp_p0,   1.9875691500E-4f);
+	_PS_CONST(float, cephes_exp_p1,   1.3981999507E-3f);
+	_PS_CONST(float, cephes_exp_p2,   8.3334519073E-3f);
+	_PS_CONST(float, cephes_exp_p3,   4.1665795894E-2f);
+	_PS_CONST(float, cephes_exp_p4,   1.6666665459E-1f);
+	_PS_CONST(float, cephes_exp_p5,   5.0000001201E-1f);
+	_PS_CONST(  int,  min_norm_pos,  0x00800000);
+	_PS_CONST(  int, inv_mant_mask, ~0x7f800000);
+	_PS_CONST(  int,          0x7f,  0x7f);
+	#undef _PS_CONST
+	struct FN
+	{
+		static __m128 exp_ps(__m128 a)
+		{
+			__m128 b, c, d;
+			a = _mm_max_ps(_mm_min_ps(a, *(__m128*)_ps_exp_hi), *(__m128*)_ps_exp_lo);
+			c = _mm_add_ps(_mm_mul_ps(a, *(__m128*)_ps_cephes_LOG2EF), *(__m128*)_ps_0p5);
+			b = _mm_cvtepi32_ps(_mm_cvttps_epi32(c));
+			c = _mm_sub_ps(b, _mm_and_ps(_mm_cmpgt_ps(b, c), *(__m128*)_ps_1));
+			a = _mm_sub_ps(_mm_sub_ps(a, _mm_mul_ps(c, *(__m128*)_ps_cephes_exp_C1)), _mm_mul_ps(c, *(__m128*)_ps_cephes_exp_C2));
+			d = _mm_mul_ps(*(__m128*)_ps_cephes_exp_p0, a);
+			d = _mm_mul_ps(_mm_add_ps(d, *(__m128*)_ps_cephes_exp_p1), a);
+			d = _mm_mul_ps(_mm_add_ps(d, *(__m128*)_ps_cephes_exp_p2), a);
+			d = _mm_mul_ps(_mm_add_ps(d, *(__m128*)_ps_cephes_exp_p3), a);
+			d = _mm_mul_ps(_mm_add_ps(d, *(__m128*)_ps_cephes_exp_p4), a);
+			d = _mm_mul_ps(_mm_add_ps(d, *(__m128*)_ps_cephes_exp_p5), _mm_mul_ps(a, a));
+			d = _mm_add_ps(_mm_add_ps(d, a), *(__m128*)_ps_1);
+			return _mm_mul_ps(d, _mm_castsi128_ps(_mm_slli_epi32(_mm_add_epi32(_mm_cvttps_epi32(c), *(__m128i*)_ps_0x7f), 23)));
+		}
+		static __m128 log_ps(__m128 a)
+		{
+			__m128 b,c,d,e;
+			b = _mm_cmple_ps(a, _mm_setzero_ps());
+			a = _mm_max_ps(a, *(__m128*)_ps_min_norm_pos);
+			c = _mm_cvtepi32_ps(_mm_sub_epi32(_mm_srli_epi32(_mm_castps_si128(a), 23), *(__m128i*)_ps_0x7f));
+			a = _mm_and_ps(a, *(__m128*)_ps_inv_mant_mask);
+			a = _mm_or_ps(a, *(__m128*)_ps_0p5);
+			d = _mm_cmplt_ps(a, *(__m128*)_ps_cephes_SQRTHF);
+			c = _mm_sub_ps(_mm_add_ps(c, *(__m128*)_ps_1), _mm_and_ps(*(__m128*)_ps_1, d));
+			d = _mm_and_ps(a, d);
+			a = _mm_add_ps(_mm_sub_ps(a, *(__m128*)_ps_1), d);
+			d = _mm_mul_ps(a, a);
+			e = _mm_mul_ps(*(__m128*)_ps_cephes_log_p0, a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p1), a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p2), a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p3), a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p4), a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p5), a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p6), a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p7), a);
+			e = _mm_mul_ps(_mm_add_ps(e, *(__m128*)_ps_cephes_log_p8), a);
+			e = _mm_mul_ps(e, d);
+			e = _mm_add_ps(e, _mm_mul_ps(c, *(__m128*)_ps_cephes_log_q1));
+			e = _mm_sub_ps(e, _mm_mul_ps(d, *(__m128*)_ps_0p5));
+			a = _mm_add_ps(a, e);
+			a = _mm_add_ps(a, _mm_mul_ps(c, *(__m128*)_ps_cephes_log_q2));
+			return _mm_or_ps(a, b);
+		}
+	};
+	return _mm_cvtss_f32(FN::exp_ps(_mm_mul_ps(FN::log_ps(_mm_set_ps1(x)), _mm_set_ps1(y))));
+}

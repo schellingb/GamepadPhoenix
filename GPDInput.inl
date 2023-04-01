@@ -2164,7 +2164,7 @@ static void SetupInput()
 							}
 							// use the Sensitivity analog stick calibration value as a factor to decide how fast mouse controlled sticks move back to the center
 							float sens = (i <= GPIDX_RSTICK_R ? 0.01f+0.00045f*(gp.Cals[i <= GPIDX_LSTICK_R ? GPCAL_LSENS : GPCAL_RSENS]+100) : 0.07f);
-							float factor = powf(0.75f, gp.DeltaTime * sens);
+							float factor = GPPow(0.75f, gp.DeltaTime * sens);
 							val += (int)(gp.Vals[i] * factor);
 							gp.Vals[i] = (unsigned short)(val > 0xFFFF ? 0xFFFF : val);
 							if (gp.Vals[i] > 0x4000 && i <= GPIDX_RSTICK_R) gp.Vals[i^1] = 0; // clear other side of analog stick axis
