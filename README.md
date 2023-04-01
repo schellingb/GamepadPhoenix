@@ -3,7 +3,7 @@
 Gamepad Phoenix is a tool for Windows to play any game (old or new) with any gamepad (old or new).
 
 ## Screenshot
-[<img src="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkwLnBuZw==/347x500/VkH6Ti.png">](https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkwLnBuZw==/original/xE6hld.png)|[<img src="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkxLnBuZw==/347x500/xDOkKI.png">](https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkxLnBuZw==/original/PSmpx%2F.png)|[<img src="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkzLnBuZw==/347x500/gGcSni.png">](https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkzLnBuZw==/original/lkV56E.png)
+[<img src="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS8xMTczMTgxNy5wbmc=/347x500/ar7QHf.png">](https://img.itch.zone/aW1hZ2UvMTA0MTc1OS8xMTczMTgxNy5wbmc=/original/a0WDD8.png)|[<img src="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkxLnBuZw==/347x500/xDOkKI.png">](https://img.itch.zone/aW1hZ2UvMTA0MTc1OS82MDkwODkxLnBuZw==/original/PSmpx%2F.png)|[<img src="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS8xMTc0MTQzNi5wbmc=/347x500/e2zFg8.png">](https://img.itch.zone/aW1hZ2UvMTA0MTc1OS8xMTc0MTQzNi5wbmc=/original/3sADGM.png)
 :---:|:---:|:---:
 Map Controller|Setup Games|More
 
@@ -12,9 +12,11 @@ Map Controller|Setup Games|More
 - Supports XInput, DirectInput and Wii controllers
 - Manage and launch games through the tool
 - Emulates XInput, DirectInput (any version) and WinMM APIs
+- Custom deadzone settings for each emulated analog stick
 - Automatic detection of API, no configuration/file copying needed
 - Supports both DRM free games and games with launchers/stores
 - Create controller presets, load one by pressing a single button
+- Keyboard and mouse inputs can be mapped to controllers
 - Easy reordering of controllers
 - Tool can be navigated by gamepad
 - Borderless fullscreen for any game
@@ -78,7 +80,7 @@ The following per-game options can be toggled by clicking on the Options box in 
   See section on [indirect loading](#indirect-loading) below.
 
 - __Disable XInput (return no connected controllers)__  
-  When set, the game will find no connected XInput controllers and will have to use other interfaces (most commonly DirectInput) to access the gamepads. 
+  When set, the game will find no connected XInput controllers and will have to use other interfaces (most commonly DirectInput) to access the gamepads.
 
 - __Disable DirectInput (return no joystick or only fake XInput gamepads)__  
   When set, Gamepad Phoenix will not return DirectInput specific gamepads (with separate axis for the two triggers) but instead return only controllers when XInput is also used.
@@ -86,7 +88,7 @@ The following per-game options can be toggled by clicking on the Options box in 
 - __Disable MMSys (return no joystick or only fake XInput gamepads)__  
   When set, Gamepad Phoenix will not return MMSys specific gamepads (with separate axis for the two triggers) but instead return only controllers when XInput is also used.
 
-- __Force game window to borderless fullscreen__
+- __Force game window to borderless fullscreen__  
   Will resize the game window to fill the entire screen. Useful for games that don't support this natively.
 
 #### Indirect Loading
@@ -95,9 +97,22 @@ Things like launchers, updaters or game stores can make the direct loading metho
 Check the log view below the game details for how a game behaves when launched and try this option when the gamepad emulation does not work.
 
 When enabled, two additional buttons "Prepare" and "Restore" will appear next to the "Launch" button.  
-Use the "Prepare" button to analyze the game and setup an appropriate redirector DLL automatically.
+Use the "Prepare" button to analyze the game and set up an appropriate redirector DLL automatically.
 
 After preparing, the game can be launched through the tool or directly through its launcher or store.
+
+### Deadzone Settings
+<a href="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS8xMTczMTcxMy5wbmc=/original/jdjrnc.png"><img align="right" src="https://img.itch.zone/aW1hZ2UvMTA0MTc1OS8xMTczMTcxMy5wbmc=/250x600/QjHB9u.png" height=200></a>
+
+The left and right analog sticks of each emulated gamepad can be tweaked by clicking the "Set Deadzones" button below the gamepad image.
+The settings window will show both raw inputs coming in and corrected stick movement to be sent to the game. For each analog stick there are 6 settings available: 
+
+- Deadzone: Set area around the center of how much stick input will be ignored
+- Max Limit: Define area around the outer border of how much stick input will be ignored
+- Anti-Deadzone: Define area around the center of output of where stick movement will start
+- Sensitivity: Increasing sensitivity will make large stick movements appear smaller, decreasing it does the inverse
+- Shift Horizontal: Shift the center stick position horizontally
+- Shift Vertical: Shift the center stick position vertically
 
 ### Connect Wii Controllers
 Gamepad Phoenix supports communication with Bluetooth powered Wii Remote Controllers and using them just like regular Windows controllers.
@@ -113,8 +128,25 @@ switch from "Searching For Wii Controller" to "Registering HID Service" and fina
 
 Once the controller has been connected, the LEDs pattern can be set with the four checkboxes in the Wii Controller list.
 The buttons and axes can be mapped to any of the gamepads in the "Controller" tabs like a regular controller.
+Make sure to check the [deadzone settings](#deadzone-settings) to confirm or adjust calibration issues and offsets.
 
-The controller will not be paired to the PC and needs to be connected again once the it loses power or the sync button gets pressed.
+The controller will not be paired to the PC and needs to be connected again once it loses power or the sync button gets pressed.
+
+### Mouse/Keyboard Inputs
+Besides physical gamepads, mouse and keyboard inputs can also be freely mapped to each emulated gamepad button and axis.
+To bind mouse movement strongly move the mouse into a direction while reading inputs. To bind a mouse button hold it for a short duration.
+To avoid mouse or keyboard inputs getting assigned switch "Assign from any source" to "Assign only from Gamepads".
+
+When using mouse movement as an analog stick, use [deadzone settings](#deadzone-settings) to customize the amount of movement needed to control the stick.
+It is suggested to use a high setting for "Max Limit" and a low setting for "Sensitivity" to reduce the movement required to reach maximum stick tilt.
+For mouse inputs the "Sensitivity" deadzone setting controls how slow/fast the stick centers itself back when stopping mouse movement.
+
+### Command Line Option
+To directly launch a configured game you can pass the game name to the program:
+```sh
+GamepadPhoenix.exe "My Game"
+```
+This will start Gamepad Phoenix in minimized state and launch the game configured with the name "My Game".
 
 ### Gamepad Controls
 The tool itself can be navigated with the mapped controllers.
