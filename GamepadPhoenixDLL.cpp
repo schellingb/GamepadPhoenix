@@ -381,6 +381,7 @@ static void InputSetup()
 					case GPIDINTERFACE_XINPUT:   useX = true; break;
 					case GPIDINTERFACE_DINPUT:   useD = true; break;
 					case GPIDINTERFACE_KEYBOARD: useD = true; break;
+					case GPIDINTERFACE_MOUSE:    useD = true; break;
 				}
 	if (useX) GPXInput::SetupInput();
 	if (useD) GPDInput::SetupInput();
