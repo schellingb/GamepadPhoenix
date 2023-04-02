@@ -533,7 +533,7 @@ struct GPDIMouseState
 
 struct GPDIObj
 {
-	enum EMap : unsigned char { NONE, AXIS_STICK, AXIS_MERGELSTICKANDDPAD, AXIS_PAIR, AXIS_SINGLE, BUTTON, DPAD, AXIS_UNMAPPED };
+	enum EMap : unsigned char { NONE, AXIS_STICK, AXIS_MERGELSTICKANDDPAD, AXIS_PAIR, AXIS_SINGLE, BUTTON, DPAD, UNMAPPED_AXIS, UNMAPPED_DPAD };
 	const WCHAR* Name;
 	const GUID* Guid;
 	WORD Type, Flags, CollectionNumber, UsagePage, Usage, Dimension;
@@ -878,12 +878,16 @@ struct GPDirectInputDevice
 						+ (LONG)(GP.Vals[o.ValIdx] * o.FactorToPos));
 					goto write_val;
 
-				case GPDIObj::AXIS_UNMAPPED:
+				case GPDIObj::BUTTON:
+					val = ((GP.Vals[o.ValIdx] & 0x8000u) ? (DWORD)o.RangeMax : (DWORD)o.RangeMin);
+					goto write_val;
+
+				case GPDIObj::UNMAPPED_AXIS:
 					val = (DWORD)o.RangeCenter;
 					goto write_val;
 
-				case GPDIObj::BUTTON:
-					val = ((GP.Vals[o.ValIdx] & 0x8000u) ? (DWORD)o.RangeMax : (DWORD)o.RangeMin);
+				case GPDIObj::UNMAPPED_DPAD:
+					val = 0xFFFFFFFF;
 					goto write_val;
 
 				case GPDIObj::DPAD:
@@ -1002,6 +1006,7 @@ struct GPDirectInputDevice
 		DWORD counters[C_NUM] = {0};
 		static const DWORD odfguids[C_NUM] = { 0, GPDIODFGUID_XAxis, GPDIODFGUID_YAxis, GPDIODFGUID_RxAxis, GPDIODFGUID_RyAxis, GPDIODFGUID_ZAxis, GPDIODFGUID_RzAxis, GPDIODFGUID_Slider, GPDIODFGUID_Button, GPDIODFGUID_POV, GPDIODFGUID_Unknown, GPDIODFGUID_Key };
 		static const DWORD odfdfts[C_NUM] = { GPDIDFT_AXIS, GPDIDFT_AXIS, GPDIDFT_AXIS, GPDIDFT_AXIS, GPDIDFT_AXIS, GPDIDFT_AXIS, GPDIDFT_AXIS, GPDIDFT_AXIS, GPDIDFT_BUTTON, GPDIDFT_POV, 0, GPDIDFT_BUTTON };
+		static const GUID* odguidptrs[C_NUM] = { &GPDI_GUID_ObjSlider, &GPDI_GUID_ObjXAxis, &GPDI_GUID_ObjYAxis, &GPDI_GUID_ObjRxAxis, &GPDI_GUID_ObjRyAxis, &GPDI_GUID_ObjZAxis, &GPDI_GUID_ObjRzAxis, &GPDI_GUID_ObjSlider, &GPDI_GUID_ObjButton, &GPDI_GUID_ObjPOV, &GPDI_GUID_ObjUnknown, &GPDI_GUID_ObjKey };
 
 		for (GPDIObj& o : Objs) o.dwOfs = (DWORD)-1;
 
@@ -1022,11 +1027,20 @@ struct GPDirectInputDevice
 						if (odfdfts[i] && !(o.Type & odfdfts[i])) continue;
 						if (ins) { ins--; continue; }
 						if (o.dwOfs == (DWORD)-1) o.dwOfs = f->dwOfs;
-						break;
+						goto mapped;
+					}
+					if (i <= C_Slider)
+					{
+						Objs.push_back({ L"Axis", odguidptrs[i], GPDIDFT_ABSAXIS, GPDIDOI_ASPECTPOSITION, 4, 1, (WORD)(100+Objs.size()), 0, 0,  0xFFFF, GPDIObj::UNMAPPED_AXIS, 0, 0x8000, -0.500015259f, 0.5f, Objs.back().HwOfs + 4, f->dwOfs });
+					}
+					else if (i == C_POV)
+					{
+						Objs.push_back({ L"Hat Switch", &GPDI_GUID_ObjPOV, GPDIDFT_POV, 0, 0, 1, (WORD)(100+Objs.size()), 14, 0,  35999, GPDIObj::UNMAPPED_DPAD, 0, 0, 0, 0, Objs.back().HwOfs + 4, f->dwOfs });
 					}
 					break;
 				}
 			}
+			mapped:;
 		}
 		return S_OK;
 	}
@@ -1681,6 +1695,9 @@ struct Report
 		{
 			HRESULT res = Outer->CreateDevice(rguid, lplpDirectInputDevice, pUnkOuter);
 			if (res != S_OK) return res;
+			if (rguid.Data2 == 0xD5A0 && rguid.Data3 == 0x11CF && !memcmp(rguid.Data4, "\xbf\xc7\x44\x45\x53\x54\0", 8) &&
+				(rguid.Data1 == 0x6f1d2b61 || rguid.Data1 == 0x6f1d2b82 || rguid.Data1 == 0x6f1d2b83 || rguid.Data1 == 0x6f1d2b60 || rguid.Data1 == 0x6f1d2b80 || rguid.Data1 == 0x6f1d2b81))
+				return res; // don't report GUID_SysKeyboard/GUID_SysKeyboardEm/GUID_SysKeyboardEm2/GUID_SysMouse/GUID_SysMouseEm/GUID_SysMouseEm2
 			*lplpDirectInputDevice = (GPDirectInputDevice*)new Report::DirectInputDevice(*lplpDirectInputDevice, IsW);
 			return S_OK;
 		}
