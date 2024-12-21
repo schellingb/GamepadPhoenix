@@ -1081,10 +1081,10 @@ namespace GamepadPhoenix
             {
                 if (ActiveGame.Target == f.txtLaunchTarget.Text) return;
                 if (f.txtLaunchName.Text == "" || (ActiveGame.Target != "" && f.txtLaunchName.Text == Path.GetFileNameWithoutExtension(ActiveGame.Target)))
-                    f.txtLaunchName.Text = Path.GetFileNameWithoutExtension(f.txtLaunchTarget.Text);
+                    { try { f.txtLaunchName.Text = Path.GetFileNameWithoutExtension(f.txtLaunchTarget.Text); } catch (Exception) { } }
                 ActiveGame.Target = f.txtLaunchTarget.Text;
                 if (ActiveGame.StartDir.Length == 0 && ActiveGame.Target.Length > 0)
-                    f.txtLaunchStartDir.Text = Path.GetDirectoryName(ActiveGame.Target);
+                    { try { f.txtLaunchStartDir.Text = Path.GetDirectoryName(ActiveGame.Target); } catch (Exception) { } }
                 RefreshLaunchTab(true);
             };
             f.txtLaunchStartDir.TextChanged += (object _s, System.EventArgs _e) =>
@@ -1404,6 +1404,7 @@ namespace GamepadPhoenix
                     bool AutoScroll = (f.lstLaunchLog.TopIndex >= (f.lstLaunchLog.Items.Count - f.lstLaunchLog.ClientSize.Height / f.lstLaunchLog.ItemHeight - 1));
                     f.lstLaunchLog.Items.Add("[" + System.DateTime.Now.ToLongTimeString() + "] " + line);
                     if (AutoScroll) f.lstLaunchLog.TopIndex = f.lstLaunchLog.Items.Count - 1;
+                    if (line.EndsWith("Wii - Read failed")) Wii.ConnectNewController();
                 }
             }
         }
@@ -1753,6 +1754,11 @@ namespace GamepadPhoenix
             if (wf != null) wf.Shutdown();
         }
 
+        internal static void ConnectNewController()
+        {
+            if (wf != null && !wf.IsRunning()) wf.Run();
+        }
+
         static bool WiiUpdateControllerList()
         {
             List<string> FoundHIDPaths = WiiFinder.GetConnectedControllers();
@@ -1967,11 +1973,14 @@ namespace GamepadPhoenix
 
         class WiiController
         {
+            static Dictionary<string, int> KnownLEDs = new Dictionary<string,int>();
             public WiiController(int index, string hidDevicePath, int leds)
             {
                 Index = index;
                 HIDPath = hidDevicePath;
                 LEDs = leds;
+                if (KnownLEDs.ContainsKey(ColId))
+                    { LEDs = KnownLEDs[ColId]; SetLed(0, ColLed1); }
             }
             public string HIDPath;
             int Index, LEDs;
@@ -1991,6 +2000,7 @@ namespace GamepadPhoenix
             {
                 if (Funcs.UIWii(HIDPath, true, (LEDs=(val ? LEDs|(1<<n) : LEDs&~(1<<n)))) == 0)
                     WiiUpdateControllerList();
+                KnownLEDs[ColId] = LEDs;
             }
         }
     }

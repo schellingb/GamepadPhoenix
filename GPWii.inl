@@ -270,6 +270,20 @@ int WINAPI UIWii(const wchar_t* hidPath, BOOL on, int LEDs = 0)
 									case ExtensionType_ClassicControllerPro:
 										ExtensionType = ExtensionType_ClassicController;
 										ReadData(REGISTER_EXTENSION_CALIBRATION, 16, extBuf);
+#if 0
+										ExtCal.XL.Max = ((extBuf[ 0] >> 2) > 0 ? (extBuf[ 0] >> 2) : 63-5);
+										ExtCal.XL.Min = ((extBuf[ 1] >> 2) > 0 ? (extBuf[ 1] >> 2) :  0+5);
+										ExtCal.XL.Mid = ((extBuf[ 2] >> 2) > 0 ? (extBuf[ 2] >> 2) : 31);
+										ExtCal.YL.Max = ((extBuf[ 3] >> 2) > 0 ? (extBuf[ 3] >> 2) : 63-5);
+										ExtCal.YL.Min = ((extBuf[ 4] >> 2) > 0 ? (extBuf[ 4] >> 2) :  0+5);
+										ExtCal.YL.Mid = ((extBuf[ 5] >> 2) > 0 ? (extBuf[ 5] >> 2) : 31);
+										ExtCal.XR.Max = ((extBuf[ 6] >> 3) > 0 ? (extBuf[ 6] >> 3) : 31-3);
+										ExtCal.XR.Min = ((extBuf[ 7] >> 3) > 0 ? (extBuf[ 7] >> 3) :  0+3);
+										ExtCal.XR.Mid = ((extBuf[ 8] >> 3) > 0 ? (extBuf[ 8] >> 3) : 15);
+										ExtCal.YR.Max = ((extBuf[ 9] >> 3) > 0 ? (extBuf[ 9] >> 3) : 31-3);
+										ExtCal.YR.Min = ((extBuf[10] >> 3) > 0 ? (extBuf[10] >> 3) :  0+3);
+										ExtCal.YR.Mid = ((extBuf[11] >> 3) > 0 ? (extBuf[11] >> 3) : 15);
+#else
 										ExtCal.XL.Max = ((extBuf[ 0] >> 2) > 0 ? (extBuf[ 0] >> 2) : 63);
 										ExtCal.XL.Min = ((extBuf[ 1] >> 2) > 0 ? (extBuf[ 1] >> 2) :  0);
 										ExtCal.XL.Mid = ((extBuf[ 2] >> 2) > 0 ? (extBuf[ 2] >> 2) : 31);
@@ -282,6 +296,7 @@ int WINAPI UIWii(const wchar_t* hidPath, BOOL on, int LEDs = 0)
 										ExtCal.YR.Max = ((extBuf[ 9] >> 3) > 0 ? (extBuf[ 9] >> 3) : 31);
 										ExtCal.YR.Min = ((extBuf[10] >> 3) > 0 ? (extBuf[10] >> 3) :  0);
 										ExtCal.YR.Mid = ((extBuf[11] >> 3) > 0 ? (extBuf[11] >> 3) : 15);
+#endif
 										ExtCal.TL.Mid =  0; //(extBuf[12] >> 3) is apparently incorrect
 										ExtCal.TL.Max = 31; //(extBuf[14] >> 3) is apparently incorrect
 										ExtCal.TL.Mid =  0; //(extBuf[13] >> 3) is apparently incorrect
@@ -324,7 +339,11 @@ int WINAPI UIWii(const wchar_t* hidPath, BOOL on, int LEDs = 0)
 					{
 						ParseButtons(buf);
 						GPASSERT(!(buf[3] & 0x08)); //Error reading data from Wiimote: Bytes do not exist.
+#if 1
+						if (buf[3] & 0x07) { WriteLog("Error reading data from Wiimote: Attempt to read from write-only registers.\n"); }
+#else
 						GPASSERT(!(buf[3] & 0x07)); //Error reading data from Wiimote: Attempt to read from write-only registers.
+#endif
 						int size = (buf[3] >> 4) + 1, offset = (buf[4] << 8 | buf[5]);
 						if (readBuf)
 						{
