@@ -607,7 +607,7 @@ struct GPInject
 		STARTUPINFOW si;
 		memset(&si, 0, sizeof(si));
 		si.cb = sizeof(STARTUPINFOW);
-		BOOL res = fpCreateProcessW(NULL, GetCommandLineW(), NULL, NULL, false, (CREATE_SUSPENDED | CREATE_DEFAULT_ERROR_MODE | DETACHED_PROCESS | CREATE_UNICODE_ENVIRONMENT), newenv, NULL, &si, lpProcessInformation);
+		BOOL res = fpCreateProcessW(NULL, GetCommandLineW(), NULL, NULL, false, (CREATE_SUSPENDED | CREATE_DEFAULT_ERROR_MODE | CREATE_NEW_CONSOLE | CREATE_UNICODE_ENVIRONMENT), newenv, NULL, &si, lpProcessInformation);
 		free(newenv);
 		return !!res;
 	}
@@ -906,7 +906,7 @@ void WINAPI UILaunch(const wchar_t* commandLine, const wchar_t* startDir)
 	PROCESS_INFORMATION pi;
 	wchar_t* commandLineDup = wcsdup(commandLine);
 	GPASSERT(!g_hHeap); //UI shouldn't hook functions
-	BOOL res = fpCreateProcessW(NULL, commandLineDup, NULL, NULL, false, (CREATE_SUSPENDED | CREATE_DEFAULT_ERROR_MODE | DETACHED_PROCESS), NULL, startDir, &si, &pi);
+	BOOL res = fpCreateProcessW(NULL, commandLineDup, NULL, NULL, false, (CREATE_SUSPENDED | CREATE_DEFAULT_ERROR_MODE | CREATE_NEW_CONSOLE), NULL, startDir, &si, &pi);
 	free(commandLineDup);
 	if (!res) return;
 	WriteLog("[LAUNCH] UI launching process '%S'\n", commandLine);
