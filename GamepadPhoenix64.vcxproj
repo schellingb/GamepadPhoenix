@@ -121,6 +121,7 @@
     <ClInclude Include="GPDInput.inl" />
     <ClInclude Include="GPWinMM.inl" />
     <ClInclude Include="GPWii.inl" />
+    <ClInclude Include="GPViGEm.inl" />
     <ClInclude Include="minhook.inl" />
     <ResourceCompile Include="GamepadPhoenixDLL.rc">
       <PreprocessorDefinitions>X64;%(PreprocessorDefinitions)</PreprocessorDefinitions>

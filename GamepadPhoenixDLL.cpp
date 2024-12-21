@@ -368,6 +368,7 @@ static bool AlreadyHooked(LPVOID pTarget, LPVOID* ppOriginal = NULL)
 #include "GPXInput.inl"
 #include "GPDInput.inl"
 #include "GPWinMM.inl"
+#include "GPViGEm.inl"
 
 static void InputSetup()
 {

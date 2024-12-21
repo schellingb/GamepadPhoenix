@@ -363,6 +363,7 @@ namespace GamepadPhoenix
         [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet=CharSet.Unicode)] internal delegate void D_UILaunch(string commandLine, string startDir);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] internal delegate IntPtr D_UIGetDIName(uint devNum);
         [UnmanagedFunctionPointer(CallingConvention.Winapi, CharSet=CharSet.Unicode)] internal delegate int D_UIWii(string hidPath, bool on, int LEDs = 0);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)] internal delegate int D_UIViGEm(bool on);
 
         internal static D_UIPad       UIPad;
         internal static D_UISetPad    UISetPad;
@@ -372,6 +373,7 @@ namespace GamepadPhoenix
         internal static D_UILaunch    UILaunch;
         internal static D_UIGetDIName UIGetDIName;
         internal static D_UIWii       UIWii;
+        internal static D_UIViGEm     UIViGEm;
 
         internal static string DLL32 = "GamepadPhoenix32.dll", DLL64 = "GamepadPhoenix64.dll";
         internal static int SizeDLL32, SizeDLL64;
@@ -395,6 +397,7 @@ namespace GamepadPhoenix
             UILaunch    = (D_UILaunch   )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UILaunch"   ), typeof(D_UILaunch   ));
             UIGetDIName = (D_UIGetDIName)Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UIGetDIName"), typeof(D_UIGetDIName));
             UIWii       = (D_UIWii      )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UIWii"      ), typeof(D_UIWii      ));
+            UIViGEm     = (D_UIViGEm    )Marshal.GetDelegateForFunctionPointer(GetProcAddress(hModule, "UIViGEm"    ), typeof(D_UIViGEm    ));
         }
 
         [DllImport("kernel32.dll", ExactSpelling = true, CharSet=CharSet.Ansi)] static extern IntPtr LoadLibraryA(string lpLibFileName);
@@ -1183,6 +1186,14 @@ namespace GamepadPhoenix
                 pu.ShowDialog();
             };
             f.btnMoreResetExcludes.Click += (object _s, EventArgs _e) => f.txtMoreExcludeList.Text = System.Text.RegularExpressions.Regex.Replace(Config.DefaultExcludeList, "[|]", Environment.NewLine);
+            f.btnMoreViGEm.Click += (object _s, EventArgs _e) =>
+            {
+                bool on = (f.btnMoreViGEm.Tag != null ? !(bool)f.btnMoreViGEm.Tag : true);
+                int res = Funcs.UIViGEm(on);
+                if (res != 0) { MessageBox.Show("Error while connecting to ViGEm (" + res  + ").", "Gamepad Phoenix", MessageBoxButtons.OK, MessageBoxIcon.Stop); return; }
+                f.btnMoreViGEm.Tag = on;
+                f.btnMoreViGEm.Text = (on ? "Disconnect from ViGEm" : "Connect to ViGEm");
+            };
             Wii.Setup(f);
         }
 

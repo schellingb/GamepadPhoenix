@@ -149,8 +149,11 @@ namespace GamepadPhoenix
         internal Label lblLoading;
         internal Label lblLoadingShadow;
         internal Button btnLaunchRestore;
-        internal Button btnLaunchSelectGameEXE;
         internal Button btnMoreResetExcludes;
+        private GroupBox groupBox8;
+        private Label lblViGEmInfo;
+        internal Button btnMoreViGEm;
+        internal Button btnLaunchSelectGameEXE;
 
         /// <summary>
         /// Required designer variable.
@@ -273,6 +276,9 @@ namespace GamepadPhoenix
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.btnLaunchLogClear = new System.Windows.Forms.Button();
             this.tabPage4 = new System.Windows.Forms.TabPage();
+            this.groupBox8 = new System.Windows.Forms.GroupBox();
+            this.lblViGEmInfo = new System.Windows.Forms.Label();
+            this.btnMoreViGEm = new System.Windows.Forms.Button();
             this.groupBox7 = new System.Windows.Forms.GroupBox();
             this.fire = new GamepadPhoenix.FireLogo();
             this.btnMoreHomepage = new System.Windows.Forms.Button();
@@ -325,6 +331,7 @@ namespace GamepadPhoenix
             ((System.ComponentModel.ISupportInitialize)(this.picRStick)).BeginInit();
             this.tabPage3.SuspendLayout();
             this.tabPage4.SuspendLayout();
+            this.groupBox8.SuspendLayout();
             this.groupBox7.SuspendLayout();
             this.tabs.SuspendLayout();
             this.panelPad.SuspendLayout();
@@ -600,8 +607,8 @@ namespace GamepadPhoenix
             this.groupBox5.Controls.Add(this.gridMoreWii);
             this.groupBox5.Location = new System.Drawing.Point(3, 295);
             this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Size = new System.Drawing.Size(948, 146);
-            this.groupBox5.TabIndex = 2;
+            this.groupBox5.Size = new System.Drawing.Size(692, 146);
+            this.groupBox5.TabIndex = 23;
             this.groupBox5.TabStop = false;
             this.groupBox5.Text = "Wii Controllers (Bluetooth)";
             // 
@@ -641,7 +648,7 @@ namespace GamepadPhoenix
             this.gridMoreWii.ShowCellErrors = false;
             this.gridMoreWii.ShowEditingIcon = false;
             this.gridMoreWii.ShowRowErrors = false;
-            this.gridMoreWii.Size = new System.Drawing.Size(936, 94);
+            this.gridMoreWii.Size = new System.Drawing.Size(680, 94);
             this.gridMoreWii.TabIndex = 2;
             // 
             // groupBox6
@@ -1354,6 +1361,7 @@ namespace GamepadPhoenix
             // 
             // tabPage4
             // 
+            this.tabPage4.Controls.Add(this.groupBox8);
             this.tabPage4.Controls.Add(this.groupBox5);
             this.tabPage4.Controls.Add(this.groupBox6);
             this.tabPage4.Controls.Add(this.groupBox7);
@@ -1362,6 +1370,39 @@ namespace GamepadPhoenix
             this.tabPage4.Size = new System.Drawing.Size(955, 443);
             this.tabPage4.TabIndex = 3;
             this.tabPage4.Text = "More        ";
+            // 
+            // groupBox8
+            // 
+            this.groupBox8.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.groupBox8.Controls.Add(this.lblViGEmInfo);
+            this.groupBox8.Controls.Add(this.btnMoreViGEm);
+            this.groupBox8.Location = new System.Drawing.Point(701, 295);
+            this.groupBox8.Name = "groupBox8";
+            this.groupBox8.Size = new System.Drawing.Size(250, 146);
+            this.groupBox8.TabIndex = 2;
+            this.groupBox8.TabStop = false;
+            this.groupBox8.Text = "(Alternative) Use ViGEm";
+            // 
+            // lblViGEmInfo
+            // 
+            this.lblViGEmInfo.Location = new System.Drawing.Point(8, 17);
+            this.lblViGEmInfo.Name = "lblViGEmInfo";
+            this.lblViGEmInfo.Size = new System.Drawing.Size(236, 97);
+            this.lblViGEmInfo.TabIndex = 0;
+            this.lblViGEmInfo.Text = "Connect to ViGEm Bus instead of loading the Gamepad Phoenix extension into each game.\n\nThis is best used with controllers mapped from Mouse, Keyboard or Wii Controllers because otherwise games might see input from multiple controllers.";
+            // 
+            // btnMoreViGEm
+            // 
+            this.btnMoreViGEm.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnMoreViGEm.Location = new System.Drawing.Point(5, 117);
+            this.btnMoreViGEm.Name = "btnMoreViGEm";
+            this.btnMoreViGEm.Size = new System.Drawing.Size(240, 23);
+            this.btnMoreViGEm.TabIndex = 1;
+            this.btnMoreViGEm.Text = "Connect to ViGEm";
+            this.btnMoreViGEm.UseVisualStyleBackColor = true;
             // 
             // groupBox7
             // 
@@ -1444,7 +1485,7 @@ namespace GamepadPhoenix
             this.tabs.Controls.Add(this.tabPage4);
             this.tabs.DrawMode = System.Windows.Forms.TabDrawMode.OwnerDrawFixed;
             this.tabs.ItemSize = new System.Drawing.Size(0, 19);
-            this.tabs.Location = new System.Drawing.Point(-2, 1);
+            this.tabs.Location = new System.Drawing.Point(0, 0);
             this.tabs.Name = "tabs";
             this.tabs.Padding = new System.Drawing.Point(0, 3);
             this.tabs.SelectedIndex = 0;
@@ -1606,6 +1647,7 @@ namespace GamepadPhoenix
             ((System.ComponentModel.ISupportInitialize)(this.picRStick)).EndInit();
             this.tabPage3.ResumeLayout(false);
             this.tabPage4.ResumeLayout(false);
+            this.groupBox8.ResumeLayout(false);
             this.groupBox7.ResumeLayout(false);
             this.tabs.ResumeLayout(false);
             this.panelPad.ResumeLayout(false);
