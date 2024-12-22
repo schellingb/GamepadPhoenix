@@ -54,6 +54,7 @@ enum GPOption : unsigned short
 	OPTION_Disable_XInput       = 0x200,
 	OPTION_Disable_DirectInput  = 0x400,
 	OPTION_Disable_MMSys        = 0x800,
+	OPTION_Disable_RawInput     = 0x1000,
 	OPTION_FullscreenWindow     = 0x4000,
 };
 

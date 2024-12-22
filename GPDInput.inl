@@ -1987,6 +1987,7 @@ static void Hook(bool forceLoad)
 		{
 			GPDI_DEBUG_WRITELOG("[GetRawInputDeviceList PRE] pRawInputDeviceList: %p - puiNumDevices: %u - cbSize: %u\n", pRawInputDeviceList, (puiNumDevices ? *puiNumDevices : 0), cbSize);
 			UINT res = fpGetRawInputDeviceList(pRawInputDeviceList, puiNumDevices, cbSize);
+			if ((pGPData->Options & OPTION_Disable_RawInput) && !InDirectInputCall) *puiNumDevices = 0;
 			GPDI_DEBUG_WRITELOG("[GetRawInputDeviceList PST] pRawInputDeviceList: %p - puiNumDevices: %u - cbSize: %u - Res: %u\n", pRawInputDeviceList, (puiNumDevices ? *puiNumDevices : 0), cbSize, res);
 			return res;
 		}

@@ -52,6 +52,8 @@ namespace GamepadPhoenix
         Disable_DirectInput  = 0x400,
         [System.ComponentModel.Description("Disable MMSys (return no joystick or only fake XInput gamepads)")]
         Disable_MMSys        = 0x800,
+        [System.ComponentModel.Description("Disable RawInput (return no device connected)")]
+        Disable_RawInput     = 0x1000,
         [System.ComponentModel.Description("Force game window to borderless fullscreen")]
         FullscreenWindow     = 0x4000,
     }
